@@ -21,10 +21,9 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MAX_INPUT_LENGTH = 2000
 
-# ── Keyword fallback (used if Groq fails) ─────────────────────────────────────
+# ── Keyword fallback ──────────────────────────────────────────────────────────
 
 PHILOSOPHIES = [
     {
@@ -184,7 +183,7 @@ DEFAULT_RESPONSE = {
 # ── Core logic ────────────────────────────────────────────────────────────────
 
 def keyword_detect(text: str) -> dict:
-    """Score all philosophies and return the best match. Always works offline."""
+    """Score all philosophies and return best match. Always works, no API needed."""
     text_lower = text.lower()
     best_score, best_match, best_keywords = 0, None, []
 
@@ -208,8 +207,18 @@ def keyword_detect(text: str) -> dict:
 
 
 def ask_groq(text: str) -> dict:
-    """Call Groq API and parse the response safely."""
-    response = groq_client.chat.completions.create(
+    """
+    Client created here, not at module level.
+    If the key is missing or Groq fails, raises an exception
+    and detect_philosophy() falls back to keywords automatically.
+    """
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not set — falling back to keywords")
+
+    client = Groq(api_key=api_key)
+
+    response = client.chat.completions.create(
         model="llama3-8b-8192",
         temperature=0.7,
         max_tokens=300,
@@ -230,7 +239,7 @@ def ask_groq(text: str) -> dict:
 
     raw = response.choices[0].message.content.strip()
 
-    # Strip markdown fences if the model ignored instructions and added them
+    # Strip markdown fences if the model added them anyway
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
@@ -245,7 +254,7 @@ def ask_groq(text: str) -> dict:
 
 
 def detect_philosophy(text: str) -> dict:
-    """Try Groq first. If anything fails, fall back to keyword scoring silently."""
+    """Try Groq first. If anything fails, fall back to keywords silently."""
     try:
         return ask_groq(text)
     except Exception as e:
