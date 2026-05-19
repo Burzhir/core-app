@@ -14,7 +14,7 @@ Grey-box penetration test against my own production Flask API. Testing covered i
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | Rate Limiting | 30 pass, then 429 | 200 for first 30, then 429 | Low |
 | 2 | XSS Payload | Treated as text, 200 OK | Returned default response, no script execution | Low |
-| 3 | Oversized Payload | 413 Input too long | [Your result here] | Medium |
+| 3 | Oversized Payload | 413 Input too long | Returned, Input too long. Max 2000 character, error | Medium |
 | 4 | Broken JSON | 400 Valid JSON required | 400 with error message | Low |
 | 5 | Wrong HTTP Method | 405 Method not allowed | 405 Method Not Allowed | Low |
 | 6 | Directory Enumeration | 404 Not found | 404 Endpoint not found for /admin and /.git/config | Low |
