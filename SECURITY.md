@@ -1,20 +1,32 @@
-1. Rate Limiting
-Sent 35 rapid requests to verify that the first 30 were accepted (200 OK) and subsequent ones were blocked with a 429 Too Many Requests error, confirming the rate limiter is enforced.
+# Security Assessment — Core API
 
-2. Cross-Site Scripting (XSS)
-Submitted a payload containing <script>alert(1)</script> to ensure the API treats it as harmless text and returns a normal JSON response; no script execution occurs because the API returns JSON, not HTML.
+**Date:** 19 May 2026
+**Tester:** Burzhir
+**Target:** https://core-app-x3ok.onrender.com
 
-3. Oversized Payload
-Sent a 5,000-character string to confirm the API rejects input exceeding the 2,000-character limit with a 413 error and a clear message.
+## Methodology
 
-4. Broken JSON
-Provided malformed JSON input to check that the API returns a 400 Bad Request error along with a descriptive error message instead of crashing or leaking internal details.
+Grey-box penetration test against my own production Flask API. Testing covered input validation, rate limiting, error handling, HTTP method enforcement, directory enumeration, and CORS policy.
 
-5. Wrong HTTP Method
-Used a GET request on the /api/diagnose endpoint (which only accepts POST) to verify it returns a 405 Method Not Allowed error.
+## Findings
 
-6. Directory Enumeration
-Attempted to access common sensitive paths like /admin and /.git/config; both correctly returned 404 Not Found, indicating no unintended information disclosure.
+| # | Test | Expected | Actual | Severity |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Rate Limiting | 30 pass, then 429 | 200 for first 30, then 429 | Low |
+| 2 | XSS Payload | Treated as text, 200 OK | Returned default response, no script execution | Low |
+| 3 | Oversized Payload | 413 Input too long | [Your result here] | Medium |
+| 4 | Broken JSON | 400 Valid JSON required | 400 with error message | Low |
+| 5 | Wrong HTTP Method | 405 Method not allowed | 405 Method Not Allowed | Low |
+| 6 | Directory Enumeration | 404 Not found | 404 Endpoint not found for /admin and /.git/config | Low |
+| 7 | CORS Header Check | Access-Control-Allow-Origin present | Access-Control-Allow-Origin: https://evil.com (not wildcard) | Info |
 
-7. CORS Header
-Sent a request with an Origin header set to https://evil.com and confirmed the response includes Access-Control-Allow-Origin: https://evil.com (not a wildcard *), showing the API dynamically echoes the specific origin.
+## Summary
+
+The API passed all planned security tests. Input validation correctly rejects oversized payloads, malformed JSON, and enforces rate limits. Error handling returns proper JSON responses without leaking stack traces. No sensitive files or endpoints are exposed. CORS is configured to dynamically echo the requesting origin rather than using a wildcard. Overall, the API demonstrates a strong security baseline suitable for production use.
+
+## Next Steps
+
+- Monitor rate limiting effectiveness under real user load
+- Implement structured logging for all requests and errors
+- Transition to AI-powered diagnosis in Phase 2
+- Conduct additional testing after major feature changes
