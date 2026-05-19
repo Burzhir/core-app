@@ -1,9 +1,15 @@
+import os
+import json
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from groq import Groq
 
-# ── App setup ────────────────────────────────────────────────────────────────
+load_dotenv()
+
+# ── App setup ─────────────────────────────────────────────────────────────────
 
 app = Flask(__name__)
 CORS(app)
@@ -15,26 +21,24 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MAX_INPUT_LENGTH = 2000
 
-# ── Philosophy definitions ────────────────────────────────────────────────────
+# ── Keyword fallback (used if Groq fails) ─────────────────────────────────────
 
 PHILOSOPHIES = [
     {
         "id": "stoicism",
         "philosophy": "Practical Stoicism",
         "keywords": [
-            "paralyzed", "stuck", "can't start", "cant start",
-            "overwhelmed", "anxious", "anxiety", "frozen", "panicking",
-            "panic", "nervous", "stressed", "stress", "dread",
+            "paralyzed", "stuck", "cant start", "overwhelmed", "anxious",
+            "anxiety", "frozen", "panicking", "panic", "nervous",
+            "stressed", "stress", "dread",
         ],
         "reason": (
-            "You feel stuck or overwhelmed. Stoicism, practiced gently, "
-            "asks one question: 'What can you do right now, in this moment?' "
-            "Not to suppress feelings — but to find one small action you control. "
-            "Start there. Just one thing."
+            "You feel stuck or overwhelmed. Stoicism asks one question: "
+            "'What can you do right now?' Not to suppress feelings — but to "
+            "find one small action you control. Start there. Just one thing."
         ),
     },
     {
@@ -46,10 +50,9 @@ PHILOSOPHIES = [
             "everyone else", "they have", "she has", "he has",
         ],
         "reason": (
-            "Comparing yourself to others is painful — but it's also deeply human. "
-            "Instead of forcing yourself to 'overcome' through willpower, try "
-            "treating yourself the way you'd treat a close friend who came to you "
-            "with this exact pain: with kindness, not judgment."
+            "Comparing yourself to others is painful but human. Try treating "
+            "yourself the way you'd treat a close friend in this exact pain: "
+            "with kindness, not judgment."
         ),
     },
     {
@@ -57,14 +60,13 @@ PHILOSOPHIES = [
         "philosophy": "Existential Humanism",
         "keywords": [
             "nothing matters", "meaningless", "why try", "pointless",
-            "no purpose", "empty", "emptiness", "what's the point",
-            "whats the point", "no reason", "nihilism", "nihilistic",
+            "no purpose", "empty", "emptiness", "whats the point",
+            "no reason", "nihilism", "nihilistic",
         ],
         "reason": (
-            "When life feels meaningless, the existentialists actually agree with you — "
-            "no cosmic meaning is handed to us. But that's the liberating part: "
-            "you get to *create* your own meaning through relationships, creativity, "
-            "and the small daily choices that define who you are."
+            "No cosmic meaning exists — but that's liberating. You get to "
+            "create your own through relationships, creativity, and the small "
+            "daily choices that define who you are."
         ),
     },
     {
@@ -76,10 +78,9 @@ PHILOSOPHIES = [
             "heartbroken", "breakup", "broke up", "divorce", "separated",
         ],
         "reason": (
-            "Grief isn't a problem to be solved — it's love with nowhere to go. "
-            "ACT doesn't ask you to 'get over it.' It asks you to feel the pain "
-            "fully, without letting it become the only thing you are. "
-            "You can carry loss and still move toward what matters."
+            "Grief isn't a problem to solve — it's love with nowhere to go. "
+            "ACT asks you to feel it fully without letting it become the only "
+            "thing you are. You can carry loss and still move toward what matters."
         ),
     },
     {
@@ -91,11 +92,9 @@ PHILOSOPHIES = [
             "lied to", "disrespected", "treated badly", "resentment", "resent",
         ],
         "reason": (
-            "Anger often points at something real — an injustice, a violation of "
-            "your values. Aristotle didn't say to suppress anger; he said to feel it "
-            "at the *right* thing, in the *right* amount, at the *right* time. "
-            "The question isn't 'why am I angry?' — it's 'what does this anger tell "
-            "me about what I value?'"
+            "Anger points at something real — a violation of your values. "
+            "Aristotle said feel it at the right thing, in the right amount. "
+            "What does this anger tell you about what you value?"
         ),
     },
     {
@@ -104,30 +103,27 @@ PHILOSOPHIES = [
         "keywords": [
             "burnout", "burned out", "exhausted", "exhaustion", "drained",
             "tired", "no energy", "running on empty", "overworked",
-            "too much", "can't keep up", "cant keep up", "falling behind",
-            "doing too much",
+            "too much", "cant keep up", "falling behind", "doing too much",
         ],
         "reason": (
-            "Wu Wei — 'effortless action' — isn't laziness. It's the Taoist insight "
-            "that constant forcing eventually breaks things, including people. "
-            "Water doesn't fight the rock; it flows around it and still carves canyons. "
-            "Rest isn't giving up. It's part of the work."
+            "Constant forcing eventually breaks things, including people. "
+            "Water carves canyons without fighting the rock. "
+            "Rest isn't giving up — it's part of the work."
         ),
     },
     {
         "id": "growth_mindset",
         "philosophy": "Growth Mindset (Carol Dweck)",
         "keywords": [
-            "fear of failure", "afraid to fail", "scared to try", "what if i fail",
-            "what if i mess up", "can't do it", "cant do it", "not smart enough",
-            "not talented", "too hard", "i'll never", "ill never", "give up",
+            "afraid to fail", "scared to try", "what if i fail",
+            "what if i mess up", "cant do it", "not smart enough",
+            "not talented", "too hard", "ill never", "give up",
             "giving up", "impossible",
         ],
         "reason": (
-            "The fear of failure isn't a sign you're weak — it's a sign you care. "
-            "Dweck's research shows that talent is far less important than believing "
-            "your abilities can grow. Every expert was once a beginner who kept going. "
-            "The attempt itself is the point, not the outcome."
+            "Fear of failure means you care. Dweck's research shows talent "
+            "matters far less than believing you can grow. Every expert was "
+            "a beginner who kept going. The attempt is the point."
         ),
     },
     {
@@ -139,42 +135,37 @@ PHILOSOPHIES = [
             "no one sees me", "left out", "excluded", "rejected", "rejection",
         ],
         "reason": (
-            "Buddhism teaches that the feeling of being a separate, isolated self "
-            "is itself the illusion causing most suffering. You are made of every "
-            "person who ever taught you something, fed you, loved you, or crossed "
-            "your path. Loneliness is real — but so is your deep connection to "
-            "everything around you."
+            "The feeling of total isolation is itself the illusion causing "
+            "most suffering. You are made of everyone who ever taught, fed, "
+            "or loved you. Loneliness is real — but so is your connection to everything."
         ),
     },
     {
         "id": "stoic_mortality",
         "philosophy": "Memento Mori (Stoic Reflection)",
         "keywords": [
-            "wasting time", "wasted my life", "running out of time", "getting old",
-            "mortality", "death", "dying", "time is running out", "too late",
-            "regret", "regrets", "should have", "wish i had", "what have i done",
+            "wasting time", "wasted my life", "running out of time",
+            "getting old", "mortality", "dying", "time is running out",
+            "too late", "regret", "regrets", "should have", "wish i had",
         ],
         "reason": (
-            "Memento Mori — 'remember you will die' — sounds dark, but the Stoics "
-            "used it as a clarifying tool, not a morbid one. When you truly feel "
-            "the limits of your time, trivial things stop mattering and the things "
-            "that *do* matter become obvious. It's the ultimate focus tool."
+            "Remembering you will die clarifies everything. Trivial things "
+            "stop mattering and what truly matters becomes obvious. "
+            "It's the ultimate focus tool, not a morbid one."
         ),
     },
     {
         "id": "pragmatism",
         "philosophy": "Pragmatism (William James)",
         "keywords": [
-            "confused", "don't know what to do", "dont know what to do",
-            "no direction", "lost", "unclear", "which path", "what should i do",
-            "decision", "can't decide", "cant decide", "unsure", "uncertain",
+            "confused", "dont know what to do", "no direction", "lost",
+            "unclear", "which path", "what should i do", "cant decide",
+            "unsure", "uncertain", "decision",
         ],
         "reason": (
-            "Pragmatism says: stop waiting for the perfect answer and test something. "
-            "An idea is only as good as what it does in the real world. Pick the "
-            "smallest possible action that moves you in a direction, try it, and "
-            "let the result tell you what to do next. Clarity comes from doing, "
-            "not from thinking alone."
+            "Stop waiting for the perfect answer — test something. "
+            "An idea is only as good as what it does in the real world. "
+            "Clarity comes from doing, not from thinking alone."
         ),
     },
 ]
@@ -182,31 +173,29 @@ PHILOSOPHIES = [
 DEFAULT_RESPONSE = {
     "philosophy": "Balanced Living",
     "reason": (
-        "You're asking the right questions. Real self-improvement isn't about "
-        "being extreme — it's about being slightly better than yesterday, while "
-        "staying kind to yourself and others."
+        "You're asking the right questions. Real growth isn't extreme — "
+        "it's being slightly better than yesterday while staying kind to yourself."
     ),
     "matched_keywords": [],
     "score": 0,
+    "source": "default",
 }
 
 # ── Core logic ────────────────────────────────────────────────────────────────
 
-def detect_philosophy(text: str) -> dict:
+def keyword_detect(text: str) -> dict:
+    """Score all philosophies and return the best match. Always works offline."""
     text_lower = text.lower()
-    best_score = 0
-    best_match = None
-    best_keywords = []
+    best_score, best_match, best_keywords = 0, None, []
 
     for entry in PHILOSOPHIES:
         matched = [kw for kw in entry["keywords"] if kw in text_lower]
-        score = len(matched)
-        if score > best_score:
-            best_score = score
+        if len(matched) > best_score:
+            best_score = len(matched)
             best_match = entry
             best_keywords = matched
 
-    if best_match is None:
+    if not best_match:
         return DEFAULT_RESPONSE
 
     return {
@@ -214,10 +203,58 @@ def detect_philosophy(text: str) -> dict:
         "reason": best_match["reason"],
         "matched_keywords": best_keywords,
         "score": best_score,
+        "source": "keywords",
     }
 
 
+def ask_groq(text: str) -> dict:
+    """Call Groq API and parse the response safely."""
+    response = groq_client.chat.completions.create(
+        model="llama3-8b-8192",
+        temperature=0.7,
+        max_tokens=300,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a philosophical diagnostician. Analyze the user's "
+                    "emotional state and return ONLY a raw JSON object with exactly "
+                    "two keys: 'philosophy' (the name of the best-fit philosophical "
+                    "framework) and 'reason' (a compassionate explanation under 100 words). "
+                    "No markdown, no code fences, no preamble. Just the JSON object."
+                ),
+            },
+            {"role": "user", "content": text},
+        ],
+    )
+
+    raw = response.choices[0].message.content.strip()
+
+    # Strip markdown fences if the model ignored instructions and added them
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    parsed = json.loads(raw)
+    parsed["source"] = "groq"
+    parsed["matched_keywords"] = []
+    parsed["score"] = 0
+    return parsed
+
+
+def detect_philosophy(text: str) -> dict:
+    """Try Groq first. If anything fails, fall back to keyword scoring silently."""
+    try:
+        return ask_groq(text)
+    except Exception as e:
+        app.logger.warning("Groq failed, using keyword fallback: %s", e)
+        return keyword_detect(text)
+
+
 def extract_text(data: dict) -> str:
+    """Accept both {text: '...'} and {answers: ['...', '...']} shapes."""
     if "text" in data:
         return str(data["text"])
     answers = data.get("answers", [])
@@ -245,7 +282,7 @@ def diagnose():
         result = detect_philosophy(combined_text)
         return jsonify(result), 200
     except Exception as e:
-        app.logger.error("Unexpected error in /api/diagnose: %s", e)
+        app.logger.error("Unhandled error in /api/diagnose: %s", e)
         return jsonify({"error": "Something went wrong. Please try again."}), 500
 
 
