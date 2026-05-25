@@ -51,270 +51,343 @@ def get_groq_client() -> Groq | None:
     return _groq_client
 
 
-# ── 15 Hardcore / Proactive Philosophies ──────────────────────────────────────
+# ── 21 Philosophical Isms ──────────────────────────────────────────────────────
+# Each entry includes: id, philosophy (display name), color, icon,
+# keywords (for keyword fallback), and a reason (call‑to‑action).
 
 PHILOSOPHIES = [
+    # ── Meaning & Existence ──────────────────────────────────────────────────
     {
-        "id": "spartan_discipline",
-        "philosophy": "Spartan Discipline",
-        "color": "#FF3B30",
-        "icon": "⚔️",
-        "keywords": [
-            "lazy", "weak", "soft", "comfort zone", "comfortable", "too easy",
-            "quit", "quitting", "no discipline", "unmotivated", "no motivation",
-            "can't push", "need a push", "procrastinating", "couch",
-        ],
-        "reason": (
-            "Spartans didn't wait to feel ready — they trained until readiness "
-            "was irrelevant. Your comfort zone isn't safety, it's slow death. "
-            "Pick one hard thing right now and do it before you negotiate with yourself."
-        ),
-    },
-    {
-        "id": "extreme_ownership",
-        "philosophy": "Extreme Ownership",
-        "color": "#FF9500",
-        "icon": "🔱",
-        "keywords": [
-            "blame", "their fault", "not my fault", "victim", "excuse",
-            "unfair", "someone else", "they did", "she did", "he did",
-            "circumstances", "bad luck", "dealt a bad hand", "system",
-        ],
-        "reason": (
-            "Everything that happens in your life is your responsibility — "
-            "not because it's all your fault, but because you are the only "
-            "variable you control. Own it completely. Leaders who blame lose. "
-            "Leaders who own, win."
-        ),
-    },
-    {
-        "id": "will_to_power",
-        "philosophy": "Nietzsche's Self-Overcoming",
-        "color": "#AF52DE",
-        "icon": "⚡",
-        "keywords": [
-            "mediocre", "average", "ordinary", "plateau", "same as everyone",
-            "not special", "nothing special", "stuck at the same level",
-            "peaked", "not growing", "stagnant", "going nowhere",
-        ],
-        "reason": (
-            "Nietzsche's demand was radical: become who you are — your "
-            "highest possible self — through relentless self-overcoming. "
-            "Average is a choice. The herd is comfortable. You aren't here "
-            "to be comfortable. Destroy the version of you that accepts less."
-        ),
-    },
-    {
-        "id": "bushido",
-        "philosophy": "Bushido: The Way of the Warrior",
-        "color": "#FF2D55",
-        "icon": "🗡️",
-        "keywords": [
-            "coward", "cowardly", "backing down", "running away", "avoided",
-            "dodged", "chickened", "no honor", "dishonest", "lied",
-            "no integrity", "compromised", "sold out", "spineless",
-        ],
-        "reason": (
-            "Bushido teaches that a warrior's death begins the moment they "
-            "compromise their code. Honor isn't reputation — it's what you do "
-            "when no one is watching and when everything is on the line. "
-            "Stand in the fire. That's what you're built for."
-        ),
-    },
-    {
-        "id": "forty_percent_rule",
-        "philosophy": "The 40% Rule",
-        "color": "#0A84FF",
-        "icon": "💥",
-        "keywords": [
-            "can't do it", "at my limit", "hit a wall", "can't go on",
-            "exhausted", "nothing left", "impossible", "too hard",
-            "give up", "giving up", "done", "finished", "can't anymore",
-            "my max", "body is done",
-        ],
-        "reason": (
-            "When your mind says you're done, you're at 40% of your actual "
-            "capacity. That voice is a liar built from evolution, not truth. "
-            "The Navy SEALs proved it, Goggins proved it. The wall is not the "
-            "end — it's where the real work starts. Go through it."
-        ),
-    },
-    {
-        "id": "warrior_stoicism",
-        "philosophy": "Warrior Stoicism (Marcus Aurelius)",
-        "color": "#636366",
+        "id": "stoicism",
+        "philosophy": "Stoicism",
+        "color": "#D4AF37",
         "icon": "🏛️",
         "keywords": [
-            "complaining", "complain", "whining", "nothing i can do",
-            "out of my control", "powerless", "helpless", "no choice",
-            "trapped", "stuck with it", "can't change it", "no way out",
+            "control", "can't change", "accept", "stress", "anxiety",
+            "overwhelm", "calm", "resilience", "what can I do",
+            "outside my control", "things happen", "peace",
+            "serenity", "focus on what matters", "let go",
         ],
         "reason": (
-            "Marcus Aurelius commanded the largest empire on earth and "
-            "still woke before dawn to remind himself: focus only on what "
-            "you can act on. Complaining is a vote for your own defeat. "
-            "Find the one degree you control and execute on it — now."
+            "The Stoic hammer: separate what you can control from what you can't. "
+            "Invest everything in the first, nothing in the second. "
+            "Today, when a worry hits, ask yourself: 'Is this mine to fix?' "
+            "If not, release it. If yes, act."
         ),
     },
     {
-        "id": "sun_tzu",
-        "philosophy": "Sun Tzu's Strategic Dominance",
-        "color": "#30D158",
-        "icon": "♟️",
+        "id": "existentialism",
+        "philosophy": "Existentialism",
+        "color": "#7F8C8D",
+        "icon": "🎭",
         "keywords": [
-            "losing", "outplayed", "outsmarted", "competition", "rival",
-            "enemy", "losing the game", "being beaten", "can't win",
-            "outmaneuvered", "losing ground", "falling behind them",
-            "they're winning", "they're ahead",
+            "meaning", "purpose", "life has no point", "lost", "direction",
+            "why am I here", "no meaning", "create your own", "freedom",
+            "choice", "no one cares", "nothing matters",
+            "existential", "create meaning", "my life is pointless",
         ],
         "reason": (
-            "Every battle is won before it's fought. Sun Tzu didn't prize "
-            "brute force — he prized positioning, information, and patience. "
-            "You don't lose because they're stronger. You lose because you "
-            "reacted instead of planned. Study the terrain. Move with purpose."
+            "Existence precedes essence – you are not born with a purpose; "
+            "you build it through action. The weight of total freedom can be "
+            "crippling, but it’s also your power. Make one decision today purely "
+            "because you choose it, not because it’s expected."
         ),
     },
     {
-        "id": "musashi_mastery",
-        "philosophy": "Musashi's Way of the Sword",
-        "color": "#FF6B35",
-        "icon": "⛩️",
+        "id": "nihilism",
+        "philosophy": "Nihilism",
+        "color": "#2C3E50",
+        "icon": "🕳️",
         "keywords": [
-            "distracted", "scattered", "unfocused", "doing too many things",
-            "jack of all trades", "no focus", "jumping between", "shiny object",
-            "can't concentrate", "attention", "switching", "multiple paths",
+            "nothing matters", "no point", "empty", "no meaning",
+            "why bother", "everything is pointless", "no value",
+            "life is meaningless", "existential crisis", "apathy",
+            "indifferent", "no reason to live",
         ],
         "reason": (
-            "Miyamoto Musashi won 61 duels undefeated through one principle: "
-            "single-pointed mastery. He didn't diversify. He cut everything "
-            "that wasn't the sword. Pick your one path. Then walk it with "
-            "such obsession that distraction becomes physically impossible."
+            "If nothing has inherent meaning, then you are free to create your own. "
+            "The world won’t hand you a purpose – that’s liberating, not terrifying. "
+            "Ask yourself: what would you do if nothing mattered? "
+            "Now go do that, because nothing does."
         ),
     },
     {
-        "id": "seneca_urgency",
-        "philosophy": "Seneca's Urgency Doctrine",
-        "color": "#FFD60A",
-        "icon": "⏳",
-        "keywords": [
-            "later", "someday", "eventually", "not yet", "when i'm ready",
-            "tomorrow", "next week", "next year", "not now", "delay",
-            "waiting", "not the right time", "one day", "procrastinate",
-        ],
-        "reason": (
-            "Seneca watched men squander their entire lives waiting for "
-            "the perfect moment. 'Omnia aliena sunt, tempus tantum nostrum.' "
-            "Everything is borrowed — only time is truly yours, and it's "
-            "already bleeding out. Not someday. Today. This hour. Right now."
-        ),
-    },
-    {
-        "id": "roosevelts_arena",
-        "philosophy": "Roosevelt's Arena",
+        "id": "absurdism",
+        "philosophy": "Absurdism",
         "color": "#BF5AF2",
-        "icon": "🏟️",
+        "icon": "🎪",
         "keywords": [
-            "judged", "what will people think", "afraid to try", "embarrassed",
-            "look stupid", "fail publicly", "scared to start", "what if i fail",
-            "people are watching", "fear of judgment", "playing it safe",
-            "not putting myself out there", "too risky", "exposed",
+            "absurd", "ridiculous", "meaningless universe", "laugh at it",
+            "why does this happen", "no reason", "embrace chaos",
+            "life is a joke", "random", "nothing makes sense",
+            "absurdity", "pointless but I keep going",
         ],
         "reason": (
-            "It is not the critic who counts. The credit belongs to the man "
-            "in the arena — face marred by dust and sweat and blood. "
-            "The people watching from the stands have no power over you. "
-            "The only shame is never entering the arena at all."
+            "Camus knew that Sisyphus must be imagined happy. "
+            "The universe is silent; that’s not a tragedy, it’s an invitation. "
+            "Today, do one thing that has no practical purpose, purely for the joy of it. "
+            "Laugh at the absurdity, then push the rock."
         ),
     },
     {
-        "id": "epictetus_fortress",
-        "philosophy": "Epictetus' Inner Citadel",
-        "color": "#5E5CE6",
-        "icon": "🔒",
+        "id": "humanism",
+        "philosophy": "Humanism",
+        "color": "#4A90D9",
+        "icon": "🤝",
         "keywords": [
-            "what people think", "their opinion", "validation", "approval",
-            "rejected", "rejection", "criticized", "people don't like me",
-            "need their approval", "caring too much", "reputation",
-            "want them to accept", "they don't respect me",
+            "human dignity", "reason", "compassion", "empathy", "science",
+            "ethics without religion", "human potential", "do good",
+            "kindness", "people matter", "human rights", "secular",
+            "help others", "community",
         ],
         "reason": (
-            "Epictetus was a slave who became freer than his masters — "
-            "because he understood one absolute truth: no one can touch "
-            "your inner world without your permission. Their opinion of you "
-            "is their business, not yours. Lock the gate. Govern yourself."
+            "You don’t need a god to be good. Humanism places the weight of ethics "
+            "squarely on our own shoulders – and that’s empowering. "
+            "Perform an act of kindness today with no expectation of reward. "
+            "Reason and compassion are your compass."
         ),
     },
     {
-        "id": "alexander_conquest",
-        "philosophy": "Alexander's Conquest Mindset",
-        "color": "#0A84FF",
-        "icon": "👑",
+        "id": "fatalism",
+        "philosophy": "Fatalism",
+        "color": "#8E44AD",
+        "icon": "🕸️",
         "keywords": [
-            "thinking too small", "small goals", "limited", "realistic",
-            "be practical", "can't aim that high", "too ambitious",
-            "dream too big", "not possible for me", "out of my league",
-            "who am i to", "people like me don't", "that's for others",
+            "fate", "destiny", "predetermined", "it is what it is",
+            "nothing I can do", "everything happens for a reason",
+            "written", "can't escape", "inevitable", "what will be will be",
         ],
         "reason": (
-            "Alexander wept because he had no more worlds to conquer — "
-            "at 32. Most people never conquer one. Your 'realistic' goal "
-            "is almost certainly too small. Expand the frame. The audacity "
-            "of the target is what calls forth the greatness to match it."
+            "If the future is already written, anxiety about it is a thief. "
+            "Focus on the present moment – it’s the only point of power you have. "
+            "Today, let go of one outcome you’re desperately trying to control. "
+            "Trust the process."
+        ),
+    },
+    # ── Self & Society ───────────────────────────────────────────────────────
+    {
+        "id": "individualism",
+        "philosophy": "Individualism",
+        "color": "#E91E63",
+        "icon": "🧍",
+        "keywords": [
+            "self-reliance", "be yourself", "independence", "don't follow the crowd",
+            "my own path", "freedom", "autonomy", "self-interest",
+            "think for yourself", "nonconformity", "unique",
+        ],
+        "reason": (
+            "Your life is your own. Society’s expectations are not a script you must follow. "
+            "Make one decision today based purely on your own values, ignoring others’ opinions. "
+            "The only approval you need is your own."
         ),
     },
     {
-        "id": "mamba_mentality",
-        "philosophy": "Mamba Mentality: Obsessive Excellence",
-        "color": "#FFD60A",
-        "icon": "🐍",
+        "id": "collectivism",
+        "philosophy": "Collectivism",
+        "color": "#2ECC71",
+        "icon": "🤲",
         "keywords": [
-            "good enough", "that'll do", "mediocre work", "barely passing",
-            "minimum effort", "cutting corners", "half effort", "half-assing",
-            "not my best", "could've done more", "settled", "low standard",
-            "just okay", "acceptable",
+            "group", "community", "together", "team", "solidarity",
+            "shared", "common good", "we not me", "society",
+            "cooperation", "help each other", "social responsibility",
         ],
         "reason": (
-            "The Mamba didn't train to be good. He trained at 4am alone "
-            "because he was already better than everyone and still wanted more. "
-            "Good enough is an insult to your potential. What would your "
-            "absolute best look like? Now do that. Every single time."
+            "None of us is as strong as all of us. The needs of the many outweigh the needs of the few. "
+            "Do something today that benefits your community without seeking personal credit. "
+            "Real power comes from the bonds we build."
         ),
     },
     {
-        "id": "naval_long_game",
-        "philosophy": "Naval's Long-Game Philosophy",
-        "color": "#64D2FF",
-        "icon": "🚀",
+        "id": "minimalism",
+        "philosophy": "Minimalism",
+        "color": "#A5D6A7",
+        "icon": "🪴",
         "keywords": [
-            "broke", "no money", "poor", "financial", "wealth", "rich",
-            "money problems", "can't get ahead", "short term", "quick money",
-            "get rich quick", "desperate for cash", "debt", "no leverage",
-            "trading time for money",
+            "less is more", "declutter", "simplify", "minimal", "too much stuff",
+            "overwhelmed by things", "own less", "simple living",
+            "need less", "let go of possessions", "tidy up",
         ],
         "reason": (
-            "Wealth is built through specific knowledge, leverage, and "
-            "compounding — not by selling hours. You want equity, not salary. "
-            "Naval's law: play long-term games with long-term people. "
-            "Every shortcut is a loan from your future self at ruinous interest."
+            "Everything you own owns you a little bit. "
+            "Remove one physical item from your space that you haven’t used in a month. "
+            "Notice the lightness. Minimalism isn’t about poverty – it’s about freedom from clutter."
         ),
     },
     {
-        "id": "diogenes_freedom",
-        "philosophy": "Diogenes' Radical Freedom",
-        "color": "#34C759",
-        "icon": "🔥",
+        "id": "hedonism",
+        "philosophy": "Hedonism",
+        "color": "#FFC107",
+        "icon": "🍇",
         "keywords": [
-            "own too much", "attached", "possessions", "stuff", "status",
-            "status symbol", "keeping up", "social pressure", "expectations",
-            "what society expects", "trapped by", "golden handcuffs",
-            "can't leave", "stuck because of", "lifestyle inflation",
+            "pleasure", "enjoyment", "fun", "happy", "good life",
+            "feel good", "sensation", "party", "treat yourself",
+            "delight", "joy", "pleasure is good",
         ],
         "reason": (
-            "Diogenes owned a bowl — then smashed it when he saw a child "
-            "drink from cupped hands. Alexander the Great offered him anything "
-            "he wanted; he asked him to move, he was blocking the sun. "
-            "The man with nothing to lose answers to no one. What are you "
-            "actually protecting? Is it worth the cage?"
+            "Pleasure isn’t a guilty secret – it’s a legitimate goal. "
+            "Do something today purely for enjoyment, without any guilt. "
+            "Life is meant to be savored, not just endured."
+        ),
+    },
+    {
+        "id": "asceticism",
+        "philosophy": "Asceticism",
+        "color": "#8D6E63",
+        "icon": "🧘",
+        "keywords": [
+            "discipline", "renounce", "abstain", "fasting", "self-denial",
+            "detach", "simple life", "no pleasure", "monk mode",
+            "control desires", "give up", "sacrifice comfort",
+        ],
+        "reason": (
+            "Strength comes from voluntary discomfort. "
+            "Skip one comfort today – your favorite snack, warm shower – "
+            "and observe your mind’s reaction. You are not your desires. "
+            "Mastery begins where indulgence ends."
+        ),
+    },
+    {
+        "id": "pragmatism",
+        "philosophy": "Pragmatism",
+        "color": "#607D8B",
+        "icon": "🔧",
+        "keywords": [
+            "practical", "what works", "useful", "solution", "fix it",
+            "no theory", "just do it", "results", "effective",
+            "trial and error", "test it", "realistic",
+        ],
+        "reason": (
+            "Ideas are only as good as their results. "
+            "Take one problem today and try the simplest solution. "
+            "Judge it solely by the outcome. Pragmatism isn’t cynical – it’s efficient."
+        ),
+    },
+    # ── Mental & Emotional Approaches ────────────────────────────────────────
+    {
+        "id": "optimism",
+        "philosophy": "Optimism",
+        "color": "#FFEB3B",
+        "icon": "🌞",
+        "keywords": [
+            "hope", "positive", "good things coming", "bright side",
+            "expect the best", "silver lining", "glass half full",
+            "believe it will get better", "optimistic",
+        ],
+        "reason": (
+            "Your expectation shapes your reality more than you think. "
+            "Reframe one negative event today by finding a genuine silver lining. "
+            "Optimism isn’t naivety – it’s a force multiplier."
+        ),
+    },
+    {
+        "id": "pessimism",
+        "philosophy": "Pessimism",
+        "color": "#37474F",
+        "icon": "🌧️",
+        "keywords": [
+            "worst case", "expect the worst", "suffering is life",
+            "disappointment", "nothing good happens", "why bother",
+            "negative", "pessimist", "it won't work", "all bad",
+        ],
+        "reason": (
+            "A little defensive pessimism can be a superpower – it prepares you for the worst. "
+            "Mentally rehearse the worst‑case scenario for one worry today, then plan how you’d handle it. "
+            "You’ll feel more in control afterwards."
+        ),
+    },
+    {
+        "id": "cynicism",
+        "philosophy": "Cynicism",
+        "color": "#66BB6A",
+        "icon": "🐕",
+        "keywords": [
+            "question everything", "don't trust", "skeptical", "hypocrisy",
+            "fake", "disillusioned", "they're all liars",
+            "don't believe", "doubt", "see through it",
+        ],
+        "reason": (
+            "A healthy dose of cynicism protects you from manipulation. "
+            "Challenge one social norm today that you find hypocritical. "
+            "Question, but don’t become bitter – let your doubt sharpen your mind."
+        ),
+    },
+    {
+        "id": "romanticism",
+        "philosophy": "Romanticism",
+        "color": "#E91E63",
+        "icon": "🌹",
+        "keywords": [
+            "emotion", "passion", "feeling", "heart over head",
+            "beauty", "nature", "love", "romantic", "intense",
+            "follow your heart", "imagination",
+        ],
+        "reason": (
+            "Logic alone makes life sterile. Express a feeling through art, music, or writing today – "
+            "without judging the result. Romanticism reminds us that not everything valuable can be measured."
+        ),
+    },
+    {
+        "id": "realism",
+        "philosophy": "Realism",
+        "color": "#607D8B",
+        "icon": "👁️",
+        "keywords": [
+            "reality", "facts", "honest", "practical", "see it as it is",
+            "no sugarcoating", "truth", "objective", "hard truth",
+            "face reality", "down to earth",
+        ],
+        "reason": (
+            "Wishful thinking never moved a stone. Describe a situation today using only observable facts, "
+            "no interpretations. Realism gives you solid ground to build on."
+        ),
+    },
+    # ── Spiritual / Eastern Approaches ───────────────────────────────────────
+    {
+        "id": "buddhism",
+        "philosophy": "Buddhism",
+        "color": "#FFA726",
+        "icon": "☸️",
+        "keywords": [
+            "mindfulness", "meditate", "suffering", "attachment",
+            "let go", "impermanence", "calm mind", "enlightenment",
+            "peace within", "detachment", "non-attachment",
+        ],
+        "reason": (
+            "Suffering comes from attachment, and the path to peace is mindfulness. "
+            "Practice five minutes of meditation today – just observe your breath. "
+            "Everything changes; clinging only brings pain."
+        ),
+    },
+    {
+        "id": "taoism",
+        "philosophy": "Taoism",
+        "color": "#66BB6A",
+        "icon": "☯️",
+        "keywords": [
+            "flow", "wu wei", "effortless", "go with the flow",
+            "nature", "balance", "harmony", "don't force",
+            "let it happen", "Tao", "the way",
+        ],
+        "reason": (
+            "Water is the softest thing, yet it wears down mountains. "
+            "Today, do one thing without forcing – allow it to unfold naturally. "
+            "The Tao teaches that true power is effortless."
+        ),
+    },
+    {
+        "id": "confucianism",
+        "philosophy": "Confucianism",
+        "color": "#D32F2F",
+        "icon": "📜",
+        "keywords": [
+            "respect", "duty", "order", "tradition", "family",
+            "elders", "virtue", "propriety", "moral",
+            "righteous", "social harmony", "filial piety",
+        ],
+        "reason": (
+            "A well‑ordered life starts with respect and self‑cultivation. "
+            "Show extra respect to an elder or mentor today – listen deeply. "
+            "Your character is the foundation of everything you build."
         ),
     },
 ]
@@ -384,6 +457,7 @@ def ask_groq(text: str) -> dict:
     if client is None:
         raise ValueError("GROQ_API_KEY not configured")
 
+    # Updated to use the new 21‑ism names
     philosophy_names = [p["philosophy"] for p in PHILOSOPHIES]
     philosophy_list = "\n".join(f"- {n}" for n in philosophy_names)
 
@@ -395,7 +469,7 @@ def ask_groq(text: str) -> dict:
             {
                 "role": "system",
                 "content": (
-                    "You are a hardcore philosophical diagnostician. "
+                    "You are a philosophical diagnostician. "
                     "Analyze the user's emotional state and situation, then select "
                     "the single best-fit philosophy from this list ONLY:\n"
                     f"{philosophy_list}\n\n"
