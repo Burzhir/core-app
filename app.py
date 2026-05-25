@@ -4,31 +4,39 @@ import json
 import uuid
 import unicodedata
 import logging
+
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from groq import Groq
+
+import requests
 
 load_dotenv()
 
-# ── Logging ────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Logging
+# ──────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
+
 logger = logging.getLogger(__name__)
 
-# ── App setup ──────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Flask App
+# ──────────────────────────────────────────────────────────────────────────────
 
 app = Flask(__name__)
 CORS(app)
 
-storage_uri = os.getenv("REDIS_URL", "memory://")  # swap to Redis in prod
+storage_uri = os.getenv("REDIS_URL", "memory://")
+
 limiter = Limiter(
-    get_remote_address,
+    key_func=get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
     storage_uri=storage_uri,
@@ -36,43 +44,42 @@ limiter = Limiter(
 
 MAX_INPUT_LENGTH = 2000
 
-# ── Groq singleton ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# OpenRouter
+# ──────────────────────────────────────────────────────────────────────────────
 
-_groq_client: Groq | None = None
-
-
-def get_groq_client() -> Groq | None:
-    global _groq_client
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        return None
-    if _groq_client is None:
-        _groq_client = Groq(api_key=api_key)
-    return _groq_client
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
-# ── 21 Philosophical Isms ──────────────────────────────────────────────────────
-# Each entry includes: id, philosophy (display name), color, icon,
-# keywords (for keyword fallback), and a reason (call‑to‑action).
+def get_openrouter_key():
+    return os.getenv("OPENROUTER_API_KEY")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Philosophies
+# ──────────────────────────────────────────────────────────────────────────────
 
 PHILOSOPHIES = [
-    # ── Meaning & Existence ──────────────────────────────────────────────────
     {
         "id": "stoicism",
         "philosophy": "Stoicism",
         "color": "#D4AF37",
         "icon": "🏛️",
         "keywords": [
-            "control", "can't change", "accept", "stress", "anxiety",
-            "overwhelm", "calm", "resilience", "what can I do",
-            "outside my control", "things happen", "peace",
-            "serenity", "focus on what matters", "let go",
+            "control",
+            "can't change",
+            "accept",
+            "stress",
+            "anxiety",
+            "overwhelm",
+            "calm",
+            "resilience",
+            "outside my control",
+            "let go",
         ],
         "reason": (
-            "The Stoic hammer: separate what you can control from what you can't. "
-            "Invest everything in the first, nothing in the second. "
-            "Today, when a worry hits, ask yourself: 'Is this mine to fix?' "
-            "If not, release it. If yes, act."
+            "Separate what you can control from what you can't. "
+            "Put your energy only into action, not panic."
         ),
     },
     {
@@ -81,16 +88,18 @@ PHILOSOPHIES = [
         "color": "#7F8C8D",
         "icon": "🎭",
         "keywords": [
-            "meaning", "purpose", "life has no point", "lost", "direction",
-            "why am I here", "no meaning", "create your own", "freedom",
-            "choice", "no one cares", "nothing matters",
-            "existential", "create meaning", "my life is pointless",
+            "meaning",
+            "purpose",
+            "lost",
+            "direction",
+            "why am i here",
+            "freedom",
+            "choice",
+            "my life is pointless",
         ],
         "reason": (
-            "Existence precedes essence – you are not born with a purpose; "
-            "you build it through action. The weight of total freedom can be "
-            "crippling, but it’s also your power. Make one decision today purely "
-            "because you choose it, not because it’s expected."
+            "You are not born with purpose. You build it through choices. "
+            "Take one meaningful action today instead of waiting for clarity."
         ),
     },
     {
@@ -99,16 +108,16 @@ PHILOSOPHIES = [
         "color": "#2C3E50",
         "icon": "🕳️",
         "keywords": [
-            "nothing matters", "no point", "empty", "no meaning",
-            "why bother", "everything is pointless", "no value",
-            "life is meaningless", "existential crisis", "apathy",
-            "indifferent", "no reason to live",
+            "nothing matters",
+            "empty",
+            "why bother",
+            "everything is pointless",
+            "life is meaningless",
+            "apathy",
         ],
         "reason": (
-            "If nothing has inherent meaning, then you are free to create your own. "
-            "The world won’t hand you a purpose – that’s liberating, not terrifying. "
-            "Ask yourself: what would you do if nothing mattered? "
-            "Now go do that, because nothing does."
+            "If nothing has inherent meaning, you're free to create your own. "
+            "Use that freedom instead of surrendering to paralysis."
         ),
     },
     {
@@ -117,16 +126,15 @@ PHILOSOPHIES = [
         "color": "#BF5AF2",
         "icon": "🎪",
         "keywords": [
-            "absurd", "ridiculous", "meaningless universe", "laugh at it",
-            "why does this happen", "no reason", "embrace chaos",
-            "life is a joke", "random", "nothing makes sense",
-            "absurdity", "pointless but I keep going",
+            "absurd",
+            "life is a joke",
+            "nothing makes sense",
+            "random",
+            "chaos",
         ],
         "reason": (
-            "Camus knew that Sisyphus must be imagined happy. "
-            "The universe is silent; that’s not a tragedy, it’s an invitation. "
-            "Today, do one thing that has no practical purpose, purely for the joy of it. "
-            "Laugh at the absurdity, then push the rock."
+            "The universe owes you no explanation. "
+            "Laugh at the absurdity and keep moving anyway."
         ),
     },
     {
@@ -135,16 +143,16 @@ PHILOSOPHIES = [
         "color": "#4A90D9",
         "icon": "🤝",
         "keywords": [
-            "human dignity", "reason", "compassion", "empathy", "science",
-            "ethics without religion", "human potential", "do good",
-            "kindness", "people matter", "human rights", "secular",
-            "help others", "community",
+            "compassion",
+            "empathy",
+            "kindness",
+            "human rights",
+            "community",
+            "help others",
         ],
         "reason": (
-            "You don’t need a god to be good. Humanism places the weight of ethics "
-            "squarely on our own shoulders – and that’s empowering. "
-            "Perform an act of kindness today with no expectation of reward. "
-            "Reason and compassion are your compass."
+            "Human connection matters. "
+            "Use reason and compassion together instead of cynicism."
         ),
     },
     {
@@ -153,32 +161,32 @@ PHILOSOPHIES = [
         "color": "#8E44AD",
         "icon": "🕸️",
         "keywords": [
-            "fate", "destiny", "predetermined", "it is what it is",
-            "nothing I can do", "everything happens for a reason",
-            "written", "can't escape", "inevitable", "what will be will be",
+            "fate",
+            "destiny",
+            "predetermined",
+            "inevitable",
+            "what will be will be",
         ],
         "reason": (
-            "If the future is already written, anxiety about it is a thief. "
-            "Focus on the present moment – it’s the only point of power you have. "
-            "Today, let go of one outcome you’re desperately trying to control. "
-            "Trust the process."
+            "Stop exhausting yourself trying to dominate every outcome. "
+            "Focus on the present moment instead."
         ),
     },
-    # ── Self & Society ───────────────────────────────────────────────────────
     {
         "id": "individualism",
         "philosophy": "Individualism",
         "color": "#E91E63",
         "icon": "🧍",
         "keywords": [
-            "self-reliance", "be yourself", "independence", "don't follow the crowd",
-            "my own path", "freedom", "autonomy", "self-interest",
-            "think for yourself", "nonconformity", "unique",
+            "independence",
+            "my own path",
+            "autonomy",
+            "be yourself",
+            "nonconformity",
         ],
         "reason": (
-            "Your life is your own. Society’s expectations are not a script you must follow. "
-            "Make one decision today based purely on your own values, ignoring others’ opinions. "
-            "The only approval you need is your own."
+            "Your life is yours. "
+            "Make decisions based on your values, not external approval."
         ),
     },
     {
@@ -187,14 +195,15 @@ PHILOSOPHIES = [
         "color": "#2ECC71",
         "icon": "🤲",
         "keywords": [
-            "group", "community", "together", "team", "solidarity",
-            "shared", "common good", "we not me", "society",
-            "cooperation", "help each other", "social responsibility",
+            "community",
+            "together",
+            "solidarity",
+            "team",
+            "common good",
         ],
         "reason": (
-            "None of us is as strong as all of us. The needs of the many outweigh the needs of the few. "
-            "Do something today that benefits your community without seeking personal credit. "
-            "Real power comes from the bonds we build."
+            "Humans survive through cooperation. "
+            "Strength grows through meaningful connection."
         ),
     },
     {
@@ -203,14 +212,14 @@ PHILOSOPHIES = [
         "color": "#A5D6A7",
         "icon": "🪴",
         "keywords": [
-            "less is more", "declutter", "simplify", "minimal", "too much stuff",
-            "overwhelmed by things", "own less", "simple living",
-            "need less", "let go of possessions", "tidy up",
+            "declutter",
+            "simplify",
+            "too much stuff",
+            "simple living",
         ],
         "reason": (
-            "Everything you own owns you a little bit. "
-            "Remove one physical item from your space that you haven’t used in a month. "
-            "Notice the lightness. Minimalism isn’t about poverty – it’s about freedom from clutter."
+            "Remove excess. "
+            "Clarity appears when distraction disappears."
         ),
     },
     {
@@ -219,14 +228,15 @@ PHILOSOPHIES = [
         "color": "#FFC107",
         "icon": "🍇",
         "keywords": [
-            "pleasure", "enjoyment", "fun", "happy", "good life",
-            "feel good", "sensation", "party", "treat yourself",
-            "delight", "joy", "pleasure is good",
+            "pleasure",
+            "enjoyment",
+            "fun",
+            "joy",
+            "happy",
         ],
         "reason": (
-            "Pleasure isn’t a guilty secret – it’s a legitimate goal. "
-            "Do something today purely for enjoyment, without any guilt. "
-            "Life is meant to be savored, not just endured."
+            "Pleasure is not automatically weakness. "
+            "Allow yourself moments of genuine enjoyment."
         ),
     },
     {
@@ -235,15 +245,15 @@ PHILOSOPHIES = [
         "color": "#8D6E63",
         "icon": "🧘",
         "keywords": [
-            "discipline", "renounce", "abstain", "fasting", "self-denial",
-            "detach", "simple life", "no pleasure", "monk mode",
-            "control desires", "give up", "sacrifice comfort",
+            "discipline",
+            "self denial",
+            "sacrifice comfort",
+            "fasting",
+            "monk mode",
         ],
         "reason": (
-            "Strength comes from voluntary discomfort. "
-            "Skip one comfort today – your favorite snack, warm shower – "
-            "and observe your mind’s reaction. You are not your desires. "
-            "Mastery begins where indulgence ends."
+            "Voluntary discomfort builds discipline. "
+            "Master your impulses instead of obeying them."
         ),
     },
     {
@@ -252,31 +262,30 @@ PHILOSOPHIES = [
         "color": "#607D8B",
         "icon": "🔧",
         "keywords": [
-            "practical", "what works", "useful", "solution", "fix it",
-            "no theory", "just do it", "results", "effective",
-            "trial and error", "test it", "realistic",
+            "practical",
+            "solution",
+            "fix it",
+            "results",
+            "effective",
         ],
         "reason": (
-            "Ideas are only as good as their results. "
-            "Take one problem today and try the simplest solution. "
-            "Judge it solely by the outcome. Pragmatism isn’t cynical – it’s efficient."
+            "Focus on what works in reality, not what sounds impressive."
         ),
     },
-    # ── Mental & Emotional Approaches ────────────────────────────────────────
     {
         "id": "optimism",
         "philosophy": "Optimism",
         "color": "#FFEB3B",
         "icon": "🌞",
         "keywords": [
-            "hope", "positive", "good things coming", "bright side",
-            "expect the best", "silver lining", "glass half full",
-            "believe it will get better", "optimistic",
+            "hope",
+            "bright side",
+            "positive",
+            "better future",
         ],
         "reason": (
-            "Your expectation shapes your reality more than you think. "
-            "Reframe one negative event today by finding a genuine silver lining. "
-            "Optimism isn’t naivety – it’s a force multiplier."
+            "Your expectations shape your actions. "
+            "Train yourself to look for possibility instead of defeat."
         ),
     },
     {
@@ -285,14 +294,13 @@ PHILOSOPHIES = [
         "color": "#37474F",
         "icon": "🌧️",
         "keywords": [
-            "worst case", "expect the worst", "suffering is life",
-            "disappointment", "nothing good happens", "why bother",
-            "negative", "pessimist", "it won't work", "all bad",
+            "worst case",
+            "negative",
+            "suffering",
+            "disappointment",
         ],
         "reason": (
-            "A little defensive pessimism can be a superpower – it prepares you for the worst. "
-            "Mentally rehearse the worst‑case scenario for one worry today, then plan how you’d handle it. "
-            "You’ll feel more in control afterwards."
+            "Prepare for difficulty realistically, but don't worship misery."
         ),
     },
     {
@@ -301,14 +309,14 @@ PHILOSOPHIES = [
         "color": "#66BB6A",
         "icon": "🐕",
         "keywords": [
-            "question everything", "don't trust", "skeptical", "hypocrisy",
-            "fake", "disillusioned", "they're all liars",
-            "don't believe", "doubt", "see through it",
+            "skeptical",
+            "fake",
+            "hypocrisy",
+            "don't trust",
+            "liars",
         ],
         "reason": (
-            "A healthy dose of cynicism protects you from manipulation. "
-            "Challenge one social norm today that you find hypocritical. "
-            "Question, but don’t become bitter – let your doubt sharpen your mind."
+            "Question systems and appearances, but don't let bitterness rot you."
         ),
     },
     {
@@ -317,13 +325,15 @@ PHILOSOPHIES = [
         "color": "#E91E63",
         "icon": "🌹",
         "keywords": [
-            "emotion", "passion", "feeling", "heart over head",
-            "beauty", "nature", "love", "romantic", "intense",
-            "follow your heart", "imagination",
+            "emotion",
+            "passion",
+            "beauty",
+            "love",
+            "heart over head",
         ],
         "reason": (
-            "Logic alone makes life sterile. Express a feeling through art, music, or writing today – "
-            "without judging the result. Romanticism reminds us that not everything valuable can be measured."
+            "Emotion and imagination matter. "
+            "Not everything valuable can be measured logically."
         ),
     },
     {
@@ -332,30 +342,31 @@ PHILOSOPHIES = [
         "color": "#607D8B",
         "icon": "👁️",
         "keywords": [
-            "reality", "facts", "honest", "practical", "see it as it is",
-            "no sugarcoating", "truth", "objective", "hard truth",
-            "face reality", "down to earth",
+            "facts",
+            "truth",
+            "objective",
+            "reality",
+            "honest",
         ],
         "reason": (
-            "Wishful thinking never moved a stone. Describe a situation today using only observable facts, "
-            "no interpretations. Realism gives you solid ground to build on."
+            "See situations as they actually are, not as you wish they were."
         ),
     },
-    # ── Spiritual / Eastern Approaches ───────────────────────────────────────
     {
         "id": "buddhism",
         "philosophy": "Buddhism",
         "color": "#FFA726",
         "icon": "☸️",
         "keywords": [
-            "mindfulness", "meditate", "suffering", "attachment",
-            "let go", "impermanence", "calm mind", "enlightenment",
-            "peace within", "detachment", "non-attachment",
+            "mindfulness",
+            "meditate",
+            "attachment",
+            "impermanence",
+            "peace within",
         ],
         "reason": (
-            "Suffering comes from attachment, and the path to peace is mindfulness. "
-            "Practice five minutes of meditation today – just observe your breath. "
-            "Everything changes; clinging only brings pain."
+            "Suffering grows through attachment. "
+            "Practice awareness instead of clinging."
         ),
     },
     {
@@ -364,14 +375,14 @@ PHILOSOPHIES = [
         "color": "#66BB6A",
         "icon": "☯️",
         "keywords": [
-            "flow", "wu wei", "effortless", "go with the flow",
-            "nature", "balance", "harmony", "don't force",
-            "let it happen", "Tao", "the way",
+            "flow",
+            "balance",
+            "go with the flow",
+            "wu wei",
         ],
         "reason": (
-            "Water is the softest thing, yet it wears down mountains. "
-            "Today, do one thing without forcing – allow it to unfold naturally. "
-            "The Tao teaches that true power is effortless."
+            "Stop forcing everything. "
+            "Some strength comes through flexibility."
         ),
     },
     {
@@ -380,14 +391,15 @@ PHILOSOPHIES = [
         "color": "#D32F2F",
         "icon": "📜",
         "keywords": [
-            "respect", "duty", "order", "tradition", "family",
-            "elders", "virtue", "propriety", "moral",
-            "righteous", "social harmony", "filial piety",
+            "respect",
+            "tradition",
+            "family",
+            "virtue",
+            "duty",
         ],
         "reason": (
-            "A well‑ordered life starts with respect and self‑cultivation. "
-            "Show extra respect to an elder or mentor today – listen deeply. "
-            "Your character is the foundation of everything you build."
+            "Character and discipline create stability. "
+            "Build yourself before trying to fix the world."
         ),
     },
 ]
@@ -397,9 +409,8 @@ DEFAULT_RESPONSE = {
     "color": "#FF9500",
     "icon": "⚒️",
     "reason": (
-        "No clear enemy identified — which means the real obstacle is you. "
-        "Pick the one thing you've been avoiding and attack it today. "
-        "Clarity comes from doing, not thinking."
+        "No strong pattern detected. "
+        "Stop overthinking and take direct action."
     ),
     "matched_keywords": [],
     "score": 0,
@@ -407,21 +418,20 @@ DEFAULT_RESPONSE = {
     "confidence": "low",
 }
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────────────────────
 
 def sanitize(text: str) -> str:
-    """Strip control characters, keep printable Unicode."""
-    return "".join(c for c in text if not unicodedata.category(c).startswith("C") or c in "\n\t ")
-
+    return "".join(
+        c for c in text
+        if not unicodedata.category(c).startswith("C") or c in "\n\t "
+    )
 
 def keyword_detect(text: str) -> dict:
-    """
-    Context‑aware keyword matching.
-    - Each keyword has a base weight proportional to its length.
-    - Requires at least 2 matches OR a phrase of 4+ words to avoid one‑hit wonders.
-    - Falls back to default if nothing is strong enough.
-    """
     text_lower = sanitize(text).lower()
+
+    # First pass: require minimum weight
     best_score = 0
     best_match = None
     best_keywords = []
@@ -429,26 +439,44 @@ def keyword_detect(text: str) -> dict:
     for entry in PHILOSOPHIES:
         matched = []
         for kw in entry["keywords"]:
-            # Use word boundary regex
             if re.search(rf"\b{re.escape(kw)}\b", text_lower):
-                # Weight = number of words in the keyword (so phrases count more)
                 weight = len(kw.split())
                 matched.append((kw, weight))
 
-        # Skip philosophies with too few / too weak matches
         total_weight = sum(w for _, w in matched)
+
         if total_weight < 2 and not any(w >= 3 for _, w in matched):
-            continue   # needs at least 2 weight points or a 3‑word phrase
+            continue
 
         if total_weight > best_score:
             best_score = total_weight
             best_match = entry
             best_keywords = [k for k, _ in matched]
 
+    # If still no match, try without the threshold (fallback within fallback)
+    if not best_match:
+        best_score = 0
+        for entry in PHILOSOPHIES:
+            matched = []
+            for kw in entry["keywords"]:
+                if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+                    weight = len(kw.split())
+                    matched.append((kw, weight))
+            total_weight = sum(w for _, w in matched)
+            if total_weight > best_score:
+                best_score = total_weight
+                best_match = entry
+                best_keywords = [k for k, _ in matched]
+
     if not best_match:
         return DEFAULT_RESPONSE
 
-    confidence = "high" if best_score >= 6 else "medium" if best_score >= 3 else "low"
+    confidence = (
+        "high" if best_score >= 6 else
+        "medium" if best_score >= 3 else
+        "low"
+    )
+
     return {
         "philosophy": best_match["philosophy"],
         "color": best_match["color"],
@@ -460,61 +488,111 @@ def keyword_detect(text: str) -> dict:
         "confidence": confidence,
     }
 
-def ask_groq(text: str) -> dict:
-    """
-    Call Groq LLM. Raises on any failure so detect_philosophy()
-    can fall back to keywords cleanly.
-    """
-    client = get_groq_client()
-    if client is None:
-        raise ValueError("GROQ_API_KEY not configured")
 
-    # Updated to use the new 21‑ism names
+def ask_openrouter(text: str) -> dict:
+
+    api_key = get_openrouter_key()
+
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY missing")
+
     philosophy_names = [p["philosophy"] for p in PHILOSOPHIES]
-    philosophy_list = "\n".join(f"- {n}" for n in philosophy_names)
 
-    response = client.chat.completions.create(
-        model="llama3-8b-8192",
-        temperature=0.6,
-        max_tokens=350,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a philosophical diagnostician. "
-                    "Analyze the user's emotional state and situation, then select "
-                    "the single best-fit philosophy from this list ONLY:\n"
-                    f"{philosophy_list}\n\n"
-                    "Return ONLY a raw JSON object with exactly these keys:\n"
-                    "  'philosophy': the exact philosophy name from the list above\n"
-                    "  'reason': a direct, no-nonsense call to action under 80 words — "
-                    "no hand-holding, no coddling, just truth and forward motion.\n"
-                    "No markdown, no code fences, no preamble. Just the JSON object."
-                ),
-            },
-            {"role": "user", "content": sanitize(text)},
-        ],
+    philosophy_list = "\n".join(
+        f"- {name}" for name in philosophy_names
     )
 
-    raw = response.choices[0].message.content.strip()
+    system_prompt = (
+        "You are a philosophical diagnostician.\n\n"
+        "Analyze the user's emotional state and choose ONLY ONE philosophy "
+        "from the list.\n\n"
+        f"{philosophy_list}\n\n"
+        "Return ONLY valid JSON.\n\n"
+        "Schema:\n"
+        "{\n"
+        '  "philosophy": "EXACT philosophy name",\n'
+        '  "reason": "Short direct advice under 80 words"\n'
+        "}\n\n"
+        "No markdown.\n"
+        "No explanations.\n"
+        "JSON only."
+    )
 
-    # Strip markdown fences defensively
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "Philosophy Diagnostician",
+    }
+
+    payload = {
+        "model": "qwen/qwen3-32b:free",
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": sanitize(text),
+            },
+        ],
+        "temperature": 0.6,
+        "max_tokens": 180,
+        "response_format": {
+            "type": "json_object"
+        },
+        "provider": {
+            "allow_fallbacks": True
+        }
+    }
+
+    response = requests.post(
+        OPENROUTER_URL,
+        headers=headers,
+        json=payload,
+        timeout=45,
+    )
+
+    if response.status_code != 200:
+        raise Exception(
+            f"OpenRouter Error {response.status_code}: {response.text}"
+        )
+
+    data = response.json()
+
+    raw = data["choices"][0]["message"]["content"].strip()
+
+    # Remove accidental markdown
     if raw.startswith("```"):
-        parts = raw.split("```")
-        raw = parts[1] if len(parts) > 1 else raw
-        if raw.startswith("json"):
-            raw = raw[4:]
+        raw = raw.replace("```json", "")
+        raw = raw.replace("```", "")
         raw = raw.strip()
 
-    parsed = json.loads(raw)
+    # Safe JSON extraction
+    try:
+        parsed = json.loads(raw)
 
-    # Validate required keys
-    if "philosophy" not in parsed or "reason" not in parsed:
-        raise ValueError(f"Groq returned unexpected schema: {list(parsed.keys())}")
+    except json.JSONDecodeError:
 
-    # Enrich with color/icon from our PHILOSOPHIES list
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+
+        if not match:
+            raise ValueError(f"Invalid JSON from model: {raw}")
+
+        parsed = json.loads(match.group())
+
+    if "philosophy" not in parsed:
+        raise ValueError("Missing philosophy field")
+
+    if "reason" not in parsed:
+        raise ValueError("Missing reason field")
+
     matched_meta = next(
-        (p for p in PHILOSOPHIES if p["philosophy"] == parsed["philosophy"]),
+        (
+            p for p in PHILOSOPHIES
+            if p["philosophy"] == parsed["philosophy"]
+        ),
         None,
     )
 
@@ -525,101 +603,177 @@ def ask_groq(text: str) -> dict:
         "reason": parsed["reason"],
         "matched_keywords": [],
         "score": 0,
-        "source": "groq",
+        "source": "openrouter",
         "confidence": "high",
     }
 
 
 def detect_philosophy(text: str) -> dict:
-    """Try Groq first; silently fall back to keyword detection on any failure."""
+
     req_id = getattr(g, "req_id", "?")
+
     try:
-        result = ask_groq(text)
-        logger.info("req=%s source=groq philosophy=%s", req_id, result["philosophy"])
+
+        result = ask_openrouter(text)
+
+        logger.info(
+            "req=%s source=openrouter philosophy=%s",
+            req_id,
+            result["philosophy"],
+        )
+
         return result
+
     except Exception as exc:
-        logger.warning("req=%s Groq failed (%s), falling back to keywords", req_id, exc)
+
+        logger.warning(
+            "req=%s OpenRouter failed (%s), using keyword fallback",
+            req_id,
+            exc,
+        )
+
         result = keyword_detect(text)
-        logger.info("req=%s source=keywords philosophy=%s score=%s",
-                    req_id, result["philosophy"], result["score"])
+
+        logger.info(
+            "req=%s source=keywords philosophy=%s score=%s",
+            req_id,
+            result["philosophy"],
+            result["score"],
+        )
+
         return result
 
 
 def extract_text(data: dict) -> str:
-    """Accept {text: '...'} or {answers: ['...', '...']} payloads."""
+
     if "text" in data:
         return str(data["text"])
+
     answers = data.get("answers", [])
+
     if isinstance(answers, list):
         return " ".join(str(a) for a in answers if a)
+
     return str(answers)
 
 
-# ── Request hooks ──────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Request Hooks
+# ──────────────────────────────────────────────────────────────────────────────
 
 @app.before_request
 def assign_request_id():
     g.req_id = str(uuid.uuid4())[:8]
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Routes
+# ──────────────────────────────────────────────────────────────────────────────
 
 @app.route("/api/diagnose", methods=["POST"])
 @limiter.limit("30 per minute")
 def diagnose():
+
     data = request.get_json(silent=True)
+
     if not data:
-        return jsonify({"error": "Request body must be valid JSON."}), 400
+        return jsonify({
+            "error": "Request body must be valid JSON."
+        }), 400
 
     combined_text = extract_text(data).strip()
+
     if not combined_text:
-        return jsonify({"error": "No input provided. Send 'answers' or 'text'."}), 400
+        return jsonify({
+            "error": "No input provided."
+        }), 400
+
     if len(combined_text) > MAX_INPUT_LENGTH:
-        return jsonify({"error": f"Input too long. Max {MAX_INPUT_LENGTH} characters."}), 413
+        return jsonify({
+            "error": f"Input too long. Max {MAX_INPUT_LENGTH} characters."
+        }), 413
 
     try:
+
         result = detect_philosophy(combined_text)
+
         return jsonify(result), 200
+
     except Exception as exc:
-        logger.error("req=%s Unhandled error: %s", g.req_id, exc)
-        return jsonify({"error": "Something went wrong. Please try again."}), 500
+
+        logger.error(
+            "req=%s Unhandled error: %s",
+            g.req_id,
+            exc,
+        )
+
+        return jsonify({
+            "error": "Something went wrong. Please try again."
+        }), 500
 
 
 @app.route("/api/philosophies", methods=["GET"])
 def list_philosophies():
-    """Return the full philosophy catalogue for onboarding/display."""
+
     slim = [
-        {"id": p["id"], "philosophy": p["philosophy"],
-         "color": p["color"], "icon": p["icon"]}
+        {
+            "id": p["id"],
+            "philosophy": p["philosophy"],
+            "color": p["color"],
+            "icon": p["icon"],
+        }
         for p in PHILOSOPHIES
     ]
-    return jsonify({"philosophies": slim, "count": len(slim)}), 200
+
+    return jsonify({
+        "philosophies": slim,
+        "count": len(slim),
+    }), 200
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    groq_ready = get_groq_client() is not None
-    return jsonify({"status": "ok", "groq": groq_ready}), 200
+
+    openrouter_ready = get_openrouter_key() is not None
+
+    return jsonify({
+        "status": "ok",
+        "openrouter": openrouter_ready,
+    }), 200
 
 
-# ── Error handlers ─────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Error Handlers
+# ──────────────────────────────────────────────────────────────────────────────
 
 @app.errorhandler(404)
 def not_found(_):
-    return jsonify({"error": "Endpoint not found."}), 404
+    return jsonify({
+        "error": "Endpoint not found."
+    }), 404
 
 
 @app.errorhandler(405)
 def method_not_allowed(_):
-    return jsonify({"error": "Method not allowed."}), 405
+    return jsonify({
+        "error": "Method not allowed."
+    }), 405
 
 
 @app.errorhandler(429)
 def rate_limit_exceeded(_):
-    return jsonify({"error": "Too many requests. Slow down and try again."}), 429
+    return jsonify({
+        "error": "Too many requests. Slow down."
+    }), 429
 
 
-# ── Entry point ────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Entry Point
+# ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(
+        debug=False,
+        host="0.0.0.0",
+        port=5000,
+    )
