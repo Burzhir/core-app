@@ -416,26 +416,39 @@ def sanitize(text: str) -> str:
 
 def keyword_detect(text: str) -> dict:
     """
-    Word-boundary regex scoring across all philosophies.
-    Always returns a result — zero API dependency.
+    Context‑aware keyword matching.
+    - Each keyword has a base weight proportional to its length.
+    - Requires at least 2 matches OR a phrase of 4+ words to avoid one‑hit wonders.
+    - Falls back to default if nothing is strong enough.
     """
     text_lower = sanitize(text).lower()
-    best_score, best_match, best_keywords = 0, None, []
+    best_score = 0
+    best_match = None
+    best_keywords = []
 
     for entry in PHILOSOPHIES:
-        matched = [
-            kw for kw in entry["keywords"]
-            if re.search(rf"\b{re.escape(kw)}\b", text_lower)
-        ]
-        if len(matched) > best_score:
-            best_score = len(matched)
+        matched = []
+        for kw in entry["keywords"]:
+            # Use word boundary regex
+            if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+                # Weight = number of words in the keyword (so phrases count more)
+                weight = len(kw.split())
+                matched.append((kw, weight))
+
+        # Skip philosophies with too few / too weak matches
+        total_weight = sum(w for _, w in matched)
+        if total_weight < 2 and not any(w >= 3 for _, w in matched):
+            continue   # needs at least 2 weight points or a 3‑word phrase
+
+        if total_weight > best_score:
+            best_score = total_weight
             best_match = entry
-            best_keywords = matched
+            best_keywords = [k for k, _ in matched]
 
     if not best_match:
         return DEFAULT_RESPONSE
 
-    confidence = "high" if best_score >= 3 else "medium" if best_score == 2 else "low"
+    confidence = "high" if best_score >= 6 else "medium" if best_score >= 3 else "low"
     return {
         "philosophy": best_match["philosophy"],
         "color": best_match["color"],
@@ -446,7 +459,6 @@ def keyword_detect(text: str) -> dict:
         "source": "keywords",
         "confidence": confidence,
     }
-
 
 def ask_groq(text: str) -> dict:
     """
