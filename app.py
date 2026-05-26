@@ -526,7 +526,7 @@ def ask_openrouter(text: str) -> dict:
     }
 
     payload = {
-        "model": "qwen/qwen3-32b:free",
+        "model": "openrouter/free",
         "messages": [
             {
                 "role": "system",
