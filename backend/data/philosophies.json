@@ -1,0 +1,154 @@
+[
+  {
+    "id": "stoicism",
+    "philosophy": "Stoicism",
+    "color": "#D4AF37",
+    "icon": "⚖️",
+    "keywords": [
+      "control", "can't change", "accept", "stress", "anxiety",
+      "overwhelm", "calm", "resilience", "outside my control",
+      "let go", "virtue", "obstacle", "endure", "fear of failure",
+      "what others think", "judgment"
+    ],
+    "reason": "Separate what you can control from what you can't. Put your energy only into action, not panic."
+  },
+  {
+    "id": "existentialism",
+    "philosophy": "Existentialism",
+    "color": "#9B8EC4",
+    "icon": "🌌",
+    "keywords": [
+      "meaning", "purpose", "lost", "direction", "why am i here",
+      "freedom", "choice", "my life is pointless", "authenticity",
+      "bad faith", "responsibility", "define myself", "no essence",
+      "create meaning"
+    ],
+    "reason": "You are not born with purpose. You build it through choices. Take one meaningful action today instead of waiting for clarity."
+  },
+  {
+    "id": "absurdism",
+    "philosophy": "Absurdism",
+    "color": "#BF5AF2",
+    "icon": "🎭",
+    "keywords": [
+      "absurd", "life is a joke", "nothing makes sense", "random",
+      "chaos", "meaningless but happy", "Sisyphus", "revolt",
+      "embrace the struggle", "no higher purpose", "live fully",
+      "contradiction"
+    ],
+    "reason": "The universe owes you no explanation. Laugh at the absurdity and keep moving anyway."
+  },
+  {
+    "id": "nihilism",
+    "philosophy": "Nihilism",
+    "color": "#4A5568",
+    "icon": "🖤",
+    "keywords": [
+      "nothing matters", "empty", "why bother", "everything is pointless",
+      "life is meaningless", "apathy", "no objective meaning",
+      "create your own values", "god is dead", "overcome",
+      "active nihilism", "will to power"
+    ],
+    "reason": "If nothing has inherent meaning, you're free to create your own. Use that freedom instead of surrendering to paralysis."
+  },
+  {
+    "id": "taoism",
+    "philosophy": "Taoism",
+    "color": "#66BB6A",
+    "icon": "☯️",
+    "keywords": [
+      "flow", "balance", "go with the flow", "wu wei",
+      "effortless action", "nature", "simplicity", "stillness",
+      "force", "control", "let things happen", "harmony",
+      "non-action", "accept change"
+    ],
+    "reason": "Stop forcing everything. Some strength comes through flexibility. Act without forcing; trust the natural rhythm."
+  },
+  {
+    "id": "humanism",
+    "philosophy": "Humanism",
+    "color": "#4A90D9",
+    "icon": "🌍",
+    "keywords": [
+      "compassion", "empathy", "kindness", "human rights",
+      "community", "help others", "reason", "human dignity",
+      "this life matters", "no divine plan", "progress",
+      "shared humanity"
+    ],
+    "reason": "Human connection matters. Use reason and compassion together instead of cynicism."
+  },
+  {
+    "id": "pragmatism",
+    "philosophy": "Pragmatism",
+    "color": "#80CBC4",
+    "icon": "⚙️",
+    "keywords": [
+      "practical", "solution", "fix it", "results", "effective",
+      "what works", "problem-solve", "provisional", "try it",
+      "stop overthinking", "action", "consequences"
+    ],
+    "reason": "Focus on what works in reality, not what sounds impressive. Ideas are tools, not dogmas."
+  },
+  {
+    "id": "epicureanism",
+    "philosophy": "Epicureanism",
+    "color": "#A5D6A7",
+    "icon": "🌿",
+    "keywords": [
+      "pleasure", "tranquility", "simple joys", "friendship",
+      "fear of death", "ataraxia", "contentment", "avoid excess",
+      "natural desires", "quiet life", "gratitude", "enough"
+    ],
+    "reason": "Pleasure is not weakness. True joy comes from simple things, deep friendships, and freedom from fear."
+  },
+  {
+    "id": "buddhism",
+    "philosophy": "Buddhism",
+    "color": "#FFA726",
+    "icon": "🪷",
+    "keywords": [
+      "suffering", "attachment", "let go", "mindfulness",
+      "meditate", "impermanence", "peace within", "craving",
+      "clinging", "non-self", "compassion", "acceptance",
+      "present moment"
+    ],
+    "reason": "Suffering grows through attachment. Practice awareness instead of clinging."
+  },
+  {
+    "id": "virtue_ethics",
+    "philosophy": "Virtue Ethics",
+    "color": "#FFB74D",
+    "icon": "🏛️",
+    "keywords": [
+      "character", "excellence", "habit", "what kind of person",
+      "flourishing", "virtue", "courage", "justice", "temperance",
+      "practical wisdom", "be better", "role model"
+    ],
+    "reason": "Don't just ask what you should do — ask what kind of person you want to become. Build character through daily practice."
+  },
+  {
+    "id": "rationalism",
+    "philosophy": "Rationalism",
+    "color": "#7E57C2",
+    "icon": "🔭",
+    "keywords": [
+      "reason", "logic", "think clearly", "doubt", "question everything",
+      "certainty", "analyse", "first principles", "truth",
+      "intellect", "evidence", "critical thinking"
+    ],
+    "reason": "Clear thinking reveals truth. Doubt your assumptions and follow reason wherever it leads."
+  },
+  {
+    "id": "cynicism",
+    "philosophy": "Cynicism",
+    "color": "#66BB6A",
+    "icon": "🐕",
+    "keywords": [
+      "convention", "society", "fake", "hypocrisy", "honesty",
+      "radical truth", "shameless", "self-sufficiency",
+      "materialism", "status", "approval", "freedom from stuff",
+      "live simply"
+    ],
+    "reason": "Question every social convention. True freedom comes from needing very little and speaking the honest truth."
+  }
+]

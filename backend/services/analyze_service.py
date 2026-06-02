@@ -1,47 +1,54 @@
-from .ai_client import ask_openrouter
 import logging
+import json
+import re
+from .ai_client import call_openrouter
+from .fallbacks import DEFAULT_ANALYSIS
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ANALYSIS = {
-    "themes": [],
-    "emotionalTone": "neutral",
-    "recurringPattern": "",
-    "insight": "No analysis available at this moment.",
-    "philosophyMatch": "Stoicism",
-    "suggestedAction": "Write again tomorrow.",
-}
+def _extract_json(text: str) -> dict:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.replace("```json", "").replace("```", "").strip()
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    raise ValueError("No JSON object found")
 
 def analyze_journal(text: str, user_name: str) -> dict:
     system_prompt = (
-        "You are a journal analyst. Analyze the following journal entry and return ONLY valid JSON.\n"
-        "Schema:\n"
+        "You are a journal analyst. Analyze the following journal entry and return ONLY a valid JSON object "
+        "(no markdown, no extra text).\n\n"
+        "JSON Schema:\n"
         "{\n"
         '  "themes": ["theme1", "theme2"],\n'
         '  "emotionalTone": "overall tone (e.g., anxious, hopeful)",\n'
         '  "recurringPattern": "any pattern you notice",\n'
         '  "insight": "one deep insight",\n'
-        '  "philosophyMatch": "one philosophy that could help from this list: Stoicism, Existentialism, Absurdism, Nihilism, Taoism, Humanism, Pragmatism, Epicureanism, Buddhism, Virtue Ethics, Rationalism, Cynicism",\n'
+        '  "philosophyMatch": "one philosophy that could help from: Stoicism, Existentialism, Absurdism, Nihilism, Taoism, Humanism, Pragmatism, Epicureanism, Buddhism, Virtue Ethics, Rationalism, Cynicism",\n'
         '  "suggestedAction": "concrete action step"\n'
-        "}\n"
-        "No markdown. JSON only."
+        "}"
     )
+
     try:
-        result = ask_openrouter(
-            text=f"User: {user_name}\nEntry: {text}",
-            system_prompt=system_prompt,
-            json_mode=True,
+        result = call_openrouter(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"User: {user_name}\nEntry: {text}"},
+            ],
             temperature=0.5,
             max_tokens=300,
         )
-        # Validate and fill defaults
+        raw = result.get("content", "")
+        parsed = _extract_json(raw)
+
         return {
-            "themes": result.get("themes", []) or [],
-            "emotionalTone": result.get("emotionalTone", "neutral"),
-            "recurringPattern": result.get("recurringPattern", ""),
-            "insight": result.get("insight", ""),
-            "philosophyMatch": result.get("philosophyMatch", "Stoicism"),
-            "suggestedAction": result.get("suggestedAction", ""),
+            "themes": parsed.get("themes", []) or [],
+            "emotionalTone": parsed.get("emotionalTone", "neutral"),
+            "recurringPattern": parsed.get("recurringPattern", ""),
+            "insight": parsed.get("insight", ""),
+            "philosophyMatch": parsed.get("philosophyMatch", "Stoicism"),
+            "suggestedAction": parsed.get("suggestedAction", ""),
         }
     except Exception as exc:
         logger.warning("Analyze AI failed: %s", exc)

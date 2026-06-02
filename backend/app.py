@@ -1,11 +1,20 @@
-# app.py
+
+import uuid
+import logging
 from flask import Flask
+from flask import g
 from config import Config
 from extensions import init_extensions
+from utils.logging_config import setup_logging
+from utils.errors import error_response
+
+logger = logging.getLogger(__name__)
 
 def create_app():
+    setup_logging()  # Configure logging with request ID support
     app = Flask(__name__)
     app.config.from_object(Config)   # loads all the Config variables
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024  # 16 KB
 
     init_extensions(app)             # sets up CORS and rate limiter
 
@@ -30,6 +39,27 @@ def create_app():
     @app.errorhandler(429)
     def rate_limited(e):
         return {"error": "Too many requests"}, 429
+    
+    @app.before_request
+    def assign_request_id():
+        g.req_id = str(uuid.uuid4())[:8]
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return error_response("Endpoint not found", 404, "NOT_FOUND")
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return error_response("Method not allowed", 405, "METHOD_NOT_ALLOWED")
+
+    @app.errorhandler(429)
+    def rate_limited(e):
+        return error_response("Too many requests. Slow down.", 429, "RATE_LIMITED")
+
+    @app.errorhandler(500)
+    def server_error(e):
+        logger.exception("Unhandled exception")
+        return error_response("Internal server error", 500, "SERVER_ERROR")    
 
     return app
 
