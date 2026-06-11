@@ -3,6 +3,7 @@ import json
 import re
 from .ai_client import call_openrouter
 from .fallbacks import DEFAULT_ANALYSIS
+from .keyword_matcher import keyword_detect
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,21 @@ def _extract_json(text: str) -> dict:
     raise ValueError("No JSON object found")
 
 def analyze_journal(text: str, user_name: str) -> dict:
+    # 1. Fast, free keyword detection to save Maya tokens
+    kw_result = keyword_detect(text)
+    if kw_result["confidence"] == "high":
+        logger.info(f"Skipping AI, using high-confidence keyword match: {kw_result['philosophy']}")
+        keywords = kw_result.get("matched_keywords", [])
+        return {
+            "themes": keywords[:3],
+            "emotionalTone": "introspective",
+            "recurringPattern": f"Recurring focus on {keywords[0]}." if keywords else "Exploring core values.",
+            "insight": f"Your thoughts naturally align with {kw_result['philosophy']} principles right now.",
+            "philosophyMatch": kw_result["philosophy"],
+            "suggestedAction": kw_result["reason"],
+        }
+
+    # 2. If confidence is low/medium, use the AI for a deep analysis
     system_prompt = (
         "You are a journal analyst. Analyze the following journal entry and return ONLY a valid JSON object "
         "(no markdown, no extra text).\n\n"
