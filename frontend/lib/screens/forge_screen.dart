@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
+import '../widgets/tappable.dart';
 import 'comparison_screen.dart';
 import 'ai_chat_screen.dart';
 
@@ -14,13 +16,13 @@ class ForgeScreen extends StatelessWidget {
         child: CustomScrollView(
           slivers: [
             // ── Header ────────────────────────────────────────────────────
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 28, 24, 8),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'FORGE',
                       style: TextStyle(
                         color: AppColors.accent,
@@ -29,9 +31,9 @@ class ForgeScreen extends StatelessWidget {
                         letterSpacing: 4,
                         fontFamily: 'Outfit',
                       ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
+                    ).animate().fadeIn(duration: 400.ms),
+                    const SizedBox(height: 6),
+                    const Text(
                       'Tools to think differently',
                       style: TextStyle(
                         color: AppColors.textPrimary,
@@ -40,16 +42,16 @@ class ForgeScreen extends StatelessWidget {
                         fontFamily: 'Outfit',
                         height: 1.2,
                       ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
+                    ).animate(delay: 80.ms).fadeIn(duration: 400.ms),
+                    const SizedBox(height: 6),
+                    const Text(
                       'Compare how different philosophies approach your situation, or talk directly with an AI philosopher.',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 14,
                         height: 1.5,
                       ),
-                    ),
+                    ).animate(delay: 160.ms).fadeIn(duration: 400.ms),
                   ],
                 ),
               ),
@@ -69,11 +71,11 @@ class ForgeScreen extends StatelessWidget {
                     badge: '8 situations',
                     badgeColor: AppColors.teal,
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const ComparisonScreen()),
+                      _fadeRoute(const ComparisonScreen()),
                     ),
                     gradient: const [Color(0xFF00B4D8), Color(0xFF0077B6)],
                     preview: const _ComparePreview(),
+                    animDelay: 240,
                   ),
                   const SizedBox(height: 20),
                   _ToolCard(
@@ -85,14 +87,17 @@ class ForgeScreen extends StatelessWidget {
                     badge: '12 philosophers',
                     badgeColor: AppColors.accent,
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AiChatScreen()),
+                      _fadeRoute(const AiChatScreen()),
                     ),
                     gradient: const [Color(0xFFBF5AF2), Color(0xFF5E5CE6)],
                     preview: const _AiPreview(),
+                    animDelay: 340,
                   ),
                 ]),
               ),
             ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -100,7 +105,22 @@ class ForgeScreen extends StatelessWidget {
   }
 }
 
-// ── Tool card ──────────────────────────────────────────────────────────────────
+PageRouteBuilder _fadeRoute(Widget page) {
+  return PageRouteBuilder(
+    pageBuilder: (_, __, ___) => page,
+    transitionsBuilder: (_, animation, __, child) {
+      final tween = Tween(begin: const Offset(0.0, 0.05), end: Offset.zero)
+          .chain(CurveTween(curve: Curves.easeOutCubic));
+      return FadeTransition(
+        opacity: animation,
+        child: SlideTransition(position: animation.drive(tween), child: child),
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 300),
+  );
+}
+
+// ── Tool card ─────────────────────────────────────────────────────────────
 
 class _ToolCard extends StatelessWidget {
   final IconData icon;
@@ -112,6 +132,7 @@ class _ToolCard extends StatelessWidget {
   final VoidCallback onTap;
   final List<Color> gradient;
   final Widget preview;
+  final int animDelay;
 
   const _ToolCard({
     required this.icon,
@@ -123,11 +144,13 @@ class _ToolCard extends StatelessWidget {
     required this.onTap,
     required this.gradient,
     required this.preview,
+    required this.animDelay,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
+      scale: 0.97,
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -136,9 +159,9 @@ class _ToolCard extends StatelessWidget {
           border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
-              color: gradient[0].withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
+              color: gradient[0].withValues(alpha: 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -203,7 +226,6 @@ class _ToolCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Title
                   Text(
                     title,
                     style: const TextStyle(
@@ -215,7 +237,6 @@ class _ToolCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
 
-                  // Subtitle
                   Text(
                     subtitle,
                     style: const TextStyle(
@@ -226,7 +247,6 @@ class _ToolCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Preview widget
                   preview,
 
                   const SizedBox(height: 18),
@@ -253,11 +273,14 @@ class _ToolCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    )
+        .animate(delay: Duration(milliseconds: animDelay))
+        .fadeIn(duration: 500.ms)
+        .slideY(begin: 0.08, end: 0);
   }
 }
 
-// ── Compare preview ───────────────────────────────────────────────────────────
+// ── Compare preview ───────────────────────────────────────────────────────
 
 class _ComparePreview extends StatelessWidget {
   const _ComparePreview();
@@ -313,7 +336,7 @@ class _ComparePreview extends StatelessWidget {
   }
 }
 
-// ── AI preview ────────────────────────────────────────────────────────────────
+// ── AI preview ────────────────────────────────────────────────────────────
 
 class _AiPreview extends StatelessWidget {
   const _AiPreview();
@@ -347,7 +370,8 @@ class _AiPreview extends StatelessWidget {
               const SizedBox(width: 8),
               const Text(
                 'Marcus Aurelius (Stoicism)',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                style:
+                    TextStyle(color: AppColors.textSecondary, fontSize: 11),
               ),
             ],
           ),

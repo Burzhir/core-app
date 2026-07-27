@@ -7,6 +7,8 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "a-very-strong-secret-key")
     REDIS_URL = os.getenv("REDIS_URL", "memory://")          # rate limit storage
     ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
-    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")     # required
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")     # required — app will warn on startup if missing
     APP_URL = os.getenv("APP_URL", "http://localhost:3000")
     PRIORITY_MODELS = os.getenv("PRIORITY_MODELS", "deepseek/deepseek-v4-flash")
+
+    # Insecure-default detection is done in create_app() so we can use the logger there.

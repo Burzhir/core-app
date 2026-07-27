@@ -68,11 +68,13 @@ class AiChatProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
-    // Build conversation history (last 8 exchanges = 16 messages max)
+    // Build conversation history (last 16 messages), excluding the user
+    // message we just added (which is the last item in _messages).
     final history = <Map<String, String>>[];
-    final start = (_messages.length - 1 - 16).clamp(0, _messages.length - 1);
-    for (var i = start; i < _messages.length - 1; i++) {
-      final m = _messages[i];
+    final prior = _messages.sublist(0, _messages.length - 1);
+    final start = (prior.length - 16).clamp(0, prior.length);
+    for (var i = start; i < prior.length; i++) {
+      final m = prior[i];
       history.add({'role': m.isUser ? 'user' : 'assistant', 'content': m.text});
     }
 

@@ -18,6 +18,12 @@ def create_app():
 
     init_extensions(app)             # sets up CORS and rate limiter
 
+    # ── Startup configuration validation ────────────────────────────────────
+    if not app.config.get("OPENROUTER_API_KEY"):
+        logger.error("OPENROUTER_API_KEY is not set — AI endpoints will return fallback responses")
+    if app.config.get("SECRET_KEY") == "a-very-strong-secret-key":
+        logger.warning("SECRET_KEY is using the insecure default — set SECRET_KEY env var in production")
+
     # Register blueprints (we'll create these in a moment)
     from blueprints.philosophies import philosophies_bp
     from blueprints.health import health_bp

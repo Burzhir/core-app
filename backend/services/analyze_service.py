@@ -13,7 +13,10 @@ def _extract_json(text: str) -> dict:
         text = text.replace("```json", "").replace("```", "").strip()
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match:
-        return json.loads(match.group())
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError as e:
+            raise ValueError(f"JSON parse error: {e}") from e
     raise ValueError("No JSON object found")
 
 def analyze_journal(text: str, user_name: str) -> dict:

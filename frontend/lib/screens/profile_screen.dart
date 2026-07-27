@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/auth_modal.dart';
 import '../providers/auth_provider.dart' as core;
 import '../screens/paywall_screen.dart';
 import '../services/notification_service.dart';
@@ -91,81 +92,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            // ── Avatar card ────────────────────────────────────────────────
+            // ── Avatar card / sign-in card ─────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 64,
-                        height: 64,
+                child: !auth.isAuthenticated
+                    ? _SignInCard()
+                    : Container(
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [AppColors.accent, Color(0xFF5E5CE6)],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.accent.withValues(alpha: 0.35),
-                              blurRadius: 16,
-                            ),
-                          ],
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: AppColors.border),
                         ),
-                        child: user?.photoUrl != null
-                            ? ClipOval(
-                                child: Image.network(
-                                  user!.photoUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      _InitialsAvatar(user: user),
-                                ),
-                              )
-                            : _InitialsAvatar(user: user),
-                      ),
-                      const SizedBox(width: 16),
-
-                      // Name + email
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              user?.displayName ?? 'Anonymous',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'Outfit',
+                            // Avatar
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [AppColors.accent, Color(0xFF5E5CE6)],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        AppColors.accent.withValues(alpha: 0.35),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                              child: user?.photoUrl != null
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        user!.photoUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            _InitialsAvatar(user: user),
+                                      ),
+                                    )
+                                  : _InitialsAvatar(user: user),
+                            ),
+                            const SizedBox(width: 16),
+                            // Name + email
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user?.displayName ?? 'Anonymous',
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'Outfit',
+                                    ),
+                                  ),
+                                  if (user?.email != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      user!.email!,
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  _PremiumBadge(isPremium: auth.isPremium),
+                                ],
                               ),
                             ),
-                            if (user?.email != null) ...[
-                              const SizedBox(height: 3),
-                              Text(
-                                user!.email!,
-                                style: const TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontSize: 12,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            _PremiumBadge(isPremium: auth.isPremium),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ),
             ),
 
@@ -364,39 +367,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            // ── Sign out ───────────────────────────────────────────────────
+            // ── Sign out / Sign in ─────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                child: GestureDetector(
-                  onTap: () => _confirmSignOut(context, auth),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFFF3B30).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout_rounded,
-                            color: Color(0xFFFF3B30), size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Sign out',
-                          style: TextStyle(
-                            color: Color(0xFFFF3B30),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                child: auth.isAuthenticated
+                    ? GestureDetector(
+                        onTap: () => _confirmSignOut(context, auth),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color:
+                                  const Color(0xFFFF3B30).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.logout_rounded,
+                                  color: Color(0xFFFF3B30), size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Sign out',
+                                style: TextStyle(
+                                  color: Color(0xFFFF3B30),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      )
+                    : GestureDetector(
+                        onTap: () => showAuthSheet(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [
+                              AppColors.accent,
+                              Color(0xFF5E5CE6),
+                            ]),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.login_rounded,
+                                  color: Colors.white, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'Sign in',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
               ),
             ),
           ],
@@ -476,6 +510,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────────────────────
+
+// ── Sign-in card (shown when user is not authenticated) ────────────────────
+
+class _SignInCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accent.withValues(alpha: 0.12),
+            const Color(0xFF5E5CE6).withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                  colors: [AppColors.accent, Color(0xFF5E5CE6)]),
+            ),
+            child: const Icon(Icons.person_outline_rounded,
+                color: Colors.white, size: 30),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Sign in to save your progress',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Outfit',
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your streak, journal entries, and AI conversations will sync across devices.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => showAuthSheet(context),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AppColors.accent, Color(0xFF5E5CE6)]),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(
+                child: Text(
+                  'Sign in with Google',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _InitialsAvatar extends StatelessWidget {
   final dynamic user;

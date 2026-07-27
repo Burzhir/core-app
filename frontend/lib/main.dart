@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-
 import 'firebase_options.dart';
 
 import 'app.dart';
@@ -29,12 +27,6 @@ void main() async {
       statusBarIconBrightness: Brightness.light,
     ),
   );
-
-  try {
-    http
-        .get(Uri.parse('https://core-app-x3ok.onrender.com/health'))
-        .timeout(const Duration(seconds: 5));
-  } catch (_) {}
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;

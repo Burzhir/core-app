@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../core/app_colors.dart';
+import '../core/auth_modal.dart';
 import '../data/philosophies_data.dart';
 import '../providers/ai_chat_provider.dart';
 import '../providers/auth_provider.dart' as core;
 import '../screens/paywall_screen.dart';
+import '../widgets/tappable.dart';
 
 class AiChatScreen extends StatefulWidget {
   final String? initialPhilosophy;
@@ -63,8 +66,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
     final ok = await chat.sendMessage(text: text, user: auth.user);
 
-    if (ok) {
-      // Increment quota counter in Firestore for free users
+    if (ok && auth.isAuthenticated) {
       await auth.consumeAiMessage();
     } else if (chat.error != null && mounted) {
       if (!auth.isPremium) {
@@ -130,13 +132,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
       ),
       body: Column(
         children: [
-          // Quota bar
-          if (!auth.isPremium && auth.user != null)
+          // Quota bar (authenticated free users only)
+          if (auth.isAuthenticated && !auth.isPremium && auth.user != null)
             _QuotaBar(
                 user: auth.user!,
-                onUpgrade: () => _openPaywall('Get unlimited AI messages')),
+                onUpgrade: () =>
+                    _openPaywall('Get unlimited AI messages')),
 
-          // Philosophy selector (shown when no philosophy is selected OR as a top picker)
           if (chat.selectedPhilosophy == null)
             Expanded(child: _PhilosophyPicker(onSelect: (name) {
               chat.selectPhilosophy(name);
@@ -149,15 +151,18 @@ class _AiChatScreenState extends State<AiChatScreen> {
               ),
             ),
 
-          // Input
           if (chat.selectedPhilosophy != null)
             _ChatInput(
               controller: _controller,
               focusNode: _focusNode,
               isLoading: chat.isLoading,
-              canSend: auth.user?.canSendAiMessage ?? true,
+              canSend: auth.isAuthenticated
+                  ? (auth.user?.canSendAiMessage ?? true)
+                  : true, // guests can chat freely
               onSend: _send,
-              onUpgrade: () => _openPaywall('Get unlimited AI messages'),
+              onUpgrade: auth.isAuthenticated
+                  ? () => _openPaywall('Get unlimited AI messages')
+                  : () => showAuthSheet(context),
             ),
         ],
       ),
@@ -165,7 +170,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 }
 
-// ── Philosopher chip in app bar ────────────────────────────────────────────────
+// ── Philosopher chip in app bar ───────────────────────────────────────────
 
 class _PhilosopherChip extends StatelessWidget {
   final String name;
@@ -195,7 +200,7 @@ class _PhilosopherChip extends StatelessWidget {
   }
 }
 
-// ── Quota bar ─────────────────────────────────────────────────────────────────
+// ── Quota bar ─────────────────────────────────────────────────────────────
 
 class _QuotaBar extends StatelessWidget {
   final dynamic user;
@@ -236,10 +241,9 @@ class _QuotaBar extends StatelessWidget {
               Text(
                 'Upgrade ↗',
                 style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700),
               ),
           ],
         ),
@@ -248,7 +252,7 @@ class _QuotaBar extends StatelessWidget {
   }
 }
 
-// ── Philosophy picker ─────────────────────────────────────────────────────────
+// ── Philosophy picker ─────────────────────────────────────────────────────
 
 class _PhilosophyPicker extends StatelessWidget {
   final ValueChanged<String> onSelect;
@@ -293,7 +297,7 @@ class _PhilosophyPicker extends StatelessWidget {
                 final p = kPhilosophies[i];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
+                  child: Tappable(
                     onTap: () => onSelect(p.name),
                     child: Container(
                       padding: const EdgeInsets.all(16),
@@ -353,20 +357,23 @@ class _PhilosophyPicker extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ),
+                  )
+                      .animate(delay: Duration(milliseconds: i * 40))
+                      .fadeIn(duration: 300.ms)
+                      .slideX(begin: 0.04, end: 0),
                 );
               },
               childCount: kPhilosophies.length,
             ),
           ),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 }
 
-// ── Chat body ─────────────────────────────────────────────────────────────────
+// ── Chat body ─────────────────────────────────────────────────────────────
 
 class _ChatBody extends StatelessWidget {
   final AiChatProvider chat;
@@ -389,7 +396,7 @@ class _ChatBody extends StatelessWidget {
           return const _TypingBubble();
         }
         final m = chat.messages[i];
-        return _MessageBubble(message: m);
+        return _MessageBubble(message: m, index: i);
       },
     );
   }
@@ -409,6 +416,7 @@ class _EmptyChat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chat = context.read<AiChatProvider>();
+    final auth = context.read<core.AuthProvider>();
     final p = kPhilosophies.where((p) => p.name == philosophyName).firstOrNull;
 
     return SingleChildScrollView(
@@ -437,7 +445,8 @@ class _EmptyChat extends StatelessWidget {
               child:
                   Text(p?.emoji ?? '💬', style: const TextStyle(fontSize: 32)),
             ),
-          ),
+          ).animate().fadeIn(duration: 400.ms).scale(
+              begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
           const SizedBox(height: 16),
           Text(
             'Talking with $philosophyName',
@@ -447,14 +456,14 @@ class _EmptyChat extends StatelessWidget {
               fontWeight: FontWeight.w700,
               fontFamily: 'Outfit',
             ),
-          ),
+          ).animate(delay: 100.ms).fadeIn(duration: 400.ms),
           const SizedBox(height: 6),
           const Text(
             'Ask anything — about life, decisions, struggles, or ideas.',
             textAlign: TextAlign.center,
             style: TextStyle(
                 color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-          ),
+          ).animate(delay: 160.ms).fadeIn(duration: 400.ms),
           const SizedBox(height: 28),
           const Align(
             alignment: Alignment.centerLeft,
@@ -467,14 +476,14 @@ class _EmptyChat extends StatelessWidget {
                 letterSpacing: 1.5,
               ),
             ),
-          ),
+          ).animate(delay: 220.ms).fadeIn(duration: 400.ms),
           const SizedBox(height: 10),
-          ..._starters.map((s) => Padding(
+          ..._starters.asMap().entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: GestureDetector(
+                child: Tappable(
+                  scale: 0.97,
                   onTap: () {
-                    final auth = context.read<core.AuthProvider>();
-                    chat.sendMessage(text: s, user: auth.user);
+                    chat.sendMessage(text: e.value, user: auth.user);
                   },
                   child: Container(
                     width: double.infinity,
@@ -486,12 +495,16 @@ class _EmptyChat extends StatelessWidget {
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Text(
-                      s,
+                      e.value,
                       style: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 13),
                     ),
                   ),
-                ),
+                )
+                    .animate(
+                        delay: Duration(milliseconds: 280 + e.key * 60))
+                    .fadeIn(duration: 300.ms)
+                    .slideY(begin: 0.05, end: 0),
               )),
         ],
       ),
@@ -501,7 +514,8 @@ class _EmptyChat extends StatelessWidget {
 
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
-  const _MessageBubble({required this.message});
+  final int index;
+  const _MessageBubble({required this.message, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -522,8 +536,8 @@ class _MessageBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppColors.accentSoft,
-                border:
-                    Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.3)),
               ),
               child: const Icon(Icons.psychology_alt_rounded,
                   color: AppColors.accent, size: 14),
@@ -531,7 +545,8 @@ class _MessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser
                     ? AppColors.accent.withValues(alpha: 0.18)
@@ -551,8 +566,9 @@ class _MessageBubble extends StatelessWidget {
               child: Text(
                 message.text,
                 style: TextStyle(
-                  color:
-                      isUser ? AppColors.textPrimary : AppColors.textSecondary,
+                  color: isUser
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
                   fontSize: 14,
                   height: 1.55,
                 ),
@@ -562,7 +578,10 @@ class _MessageBubble extends StatelessWidget {
           if (isUser) const SizedBox(width: 8),
         ],
       ),
-    );
+    )
+        .animate()
+        .fadeIn(duration: 250.ms)
+        .slideY(begin: isUser ? 0.04 : -0.04, end: 0);
   }
 }
 
@@ -589,7 +608,8 @@ class _TypingBubble extends StatelessWidget {
                 color: AppColors.accent, size: 14),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: const BorderRadius.only(
@@ -607,7 +627,7 @@ class _TypingBubble extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).animate().fadeIn(duration: 200.ms);
   }
 }
 
@@ -645,14 +665,17 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: FadeTransition(
-        opacity: _anim,
-        child: Container(
-          width: 6,
-          height: 6,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.textMuted,
+      child: AnimatedBuilder(
+        animation: _anim,
+        builder: (_, __) => Transform.translate(
+          offset: Offset(0, -4 * _anim.value),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.textMuted,
+            ),
           ),
         ),
       ),
@@ -660,7 +683,7 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
   }
 }
 
-// ── Chat input ────────────────────────────────────────────────────────────────
+// ── Chat input ────────────────────────────────────────────────────────────
 
 class _ChatInput extends StatelessWidget {
   final TextEditingController controller;
@@ -689,7 +712,7 @@ class _ChatInput extends StatelessWidget {
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: GestureDetector(
+        child: Tappable(
           onTap: onUpgrade,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -728,26 +751,28 @@ class _ChatInput extends StatelessWidget {
               focusNode: focusNode,
               enabled: !isLoading,
               maxLines: null,
-              style:
-                  const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: const TextStyle(
+                  color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Ask anything…',
-                hintStyle: const TextStyle(color: AppColors.textMuted),
+                hintStyle:
+                    const TextStyle(color: AppColors.textMuted),
                 filled: true,
                 fillColor: AppColors.surfaceAlt,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
               ),
               onSubmitted: (_) => onSend(),
               textInputAction: TextInputAction.send,
             ),
           ),
           const SizedBox(width: 10),
-          GestureDetector(
+          Tappable(
+            scale: 0.9,
             onTap: isLoading ? null : onSend,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),

@@ -14,19 +14,26 @@ DEFAULT_RESPONSE = {
     "confidence": "low",
 }
 
+
+def _score_entry(entry: dict, text_lower: str) -> list[tuple[str, int]]:
+    """Return a list of (keyword, weight) tuples matched in text_lower for one philosophy entry."""
+    matched = []
+    for kw in entry["keywords"]:
+        if re.search(rf"\b{re.escape(kw)}\b", text_lower):
+            weight = len(kw.split())
+            matched.append((kw, weight))
+    return matched
+
+
 def keyword_detect(text: str) -> dict:
     text_lower = sanitize(text).lower()
     best_score = 0
     best_match = None
-    best_keywords = []
+    best_keywords: list[str] = []
 
-    # First pass: require some minimum weight
+    # First pass: require some minimum weight to avoid noise
     for entry in PHILOSOPHIES:
-        matched = []
-        for kw in entry["keywords"]:
-            if re.search(rf"\b{re.escape(kw)}\b", text_lower):
-                weight = len(kw.split())
-                matched.append((kw, weight))
+        matched = _score_entry(entry, text_lower)
         total_weight = sum(w for _, w in matched)
         if total_weight < 2 and not any(w >= 3 for _, w in matched):
             continue
@@ -35,14 +42,10 @@ def keyword_detect(text: str) -> dict:
             best_match = entry
             best_keywords = [k for k, _ in matched]
 
-    # Second pass: without threshold, to avoid returning default too early
+    # Second pass: no threshold, so we avoid returning the default too early
     if not best_match:
         for entry in PHILOSOPHIES:
-            matched = []
-            for kw in entry["keywords"]:
-                if re.search(rf"\b{re.escape(kw)}\b", text_lower):
-                    weight = len(kw.split())
-                    matched.append((kw, weight))
+            matched = _score_entry(entry, text_lower)
             total_weight = sum(w for _, w in matched)
             if total_weight > best_score:
                 best_score = total_weight

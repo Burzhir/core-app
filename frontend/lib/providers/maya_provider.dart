@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../core/api_config.dart';
 import '../models/user_model.dart';
 import '../services/revenue_cat_service.dart';
 
@@ -37,9 +38,6 @@ class MayaProvider extends ChangeNotifier {
   String? get error => _error;
   bool get showPaywall => _showPaywall;
 
-  static const String _baseUrl = 'https://core-app-x3ok.onrender.com';
-  static const Duration _timeout = Duration(seconds: 45);
-
   Future<void> sendMessage(String text, UserModel? user) async {
     if (text.trim().isEmpty) return;
 
@@ -54,8 +52,7 @@ class MayaProvider extends ChangeNotifier {
 
     try {
       final isPremium = await RevenueCatService.checkPremium();
-      // Count user messages to Maya (in a real app, this would be persisted in Firestore)
-      int userMessageCount = _messages.where((m) => m.isUser).length;
+      final userMessageCount = _messages.where((m) => m.isUser).length;
 
       final history = _messages.map((m) {
         return {'role': m.isUser ? 'user' : 'assistant', 'content': m.text};
@@ -63,7 +60,7 @@ class MayaProvider extends ChangeNotifier {
 
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/api/maya'),
+            Uri.parse('${ApiConfig.baseUrl}/api/maya'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'messages': history,
@@ -71,24 +68,32 @@ class MayaProvider extends ChangeNotifier {
               'message_count': userMessageCount,
             }),
           )
-          .timeout(_timeout);
+          .timeout(ApiConfig.timeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        
+        Map<String, dynamic> data;
+        try {
+          data = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {
+          _error = 'Maya returned an unexpected response. Please try again.';
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
+
         if (data['action'] == 'paywall') {
           _showPaywall = true;
           _messages.add(MayaMessage(
-            text: data['message'] ?? 'You have reached your free limit.',
-            improvement: data['improvement'],
+            text: data['message'] as String? ?? 'You have reached your free limit.',
+            improvement: data['improvement'] as String?,
             isUser: false,
             timestamp: DateTime.now(),
           ));
         } else {
           _messages.add(MayaMessage(
-            text: data['message'] ?? '',
-            improvement: data['improvement'],
-            target: data['target'],
+            text: data['message'] as String? ?? '',
+            improvement: data['improvement'] as String?,
+            target: data['target'] as String?,
             isUser: false,
             timestamp: DateTime.now(),
           ));
@@ -97,6 +102,7 @@ class MayaProvider extends ChangeNotifier {
         _error = 'Maya is currently unavailable.';
       }
     } catch (e) {
+      debugPrint('MayaProvider error: $e');
       _error = 'Could not reach Maya. Check your connection.';
     } finally {
       _isLoading = false;

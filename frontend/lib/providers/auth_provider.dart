@@ -133,16 +133,11 @@ class AuthProvider extends ChangeNotifier {
     final hasPremium = await RevenueCatService.checkPremium();
     if (hasPremium == u.isPremium) return;
 
-    try {
-      await _db
-          .collection('users')
-          .doc(u.uid)
-          .update({'isPremium': hasPremium});
-      _user = u.copyWith(isPremium: hasPremium);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('AuthProvider: error syncing premium — $e');
-    }
+    // Only update in-memory — isPremium in Firestore should be managed by
+    // RevenueCat webhooks on the backend, not written from the client.
+    // Writing it from the client allows any user to spoof premium status.
+    _user = u.copyWith(isPremium: hasPremium);
+    notifyListeners();
   }
 
   /// Call this whenever the app becomes active (initState, on resume)

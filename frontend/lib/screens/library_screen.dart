@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../core/app_colors.dart';
 import '../widgets/cosmic_background.dart';
+import '../widgets/tappable.dart';
 import '../data/philosophies_data.dart';
 import '../models/philosophy_model.dart';
 import 'philosophy_detail_screen.dart';
@@ -34,7 +35,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           SafeArea(
             child: CustomScrollView(
               slivers: [
-                // ── Header ────────────────────────────────────────────────────
+                // ── Header ───────────────────────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
@@ -90,7 +91,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                 ),
 
-                // ── Grid ──────────────────────────────────────────────────────
+                // ── Grid ─────────────────────────────────────────────────
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                   sliver: SliverGrid(
@@ -104,17 +105,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, i) {
                         final p = filtered[i];
-                        return GestureDetector(
+                        return Tappable(
+                          scale: 0.95,
                           onTap: () => Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) =>
+                            PageRouteBuilder(
+                              pageBuilder: (_, __, ___) =>
                                   PhilosophyDetailScreen(philosophy: p),
+                              transitionsBuilder: (_, animation, __, child) {
+                                return FadeTransition(
+                                    opacity: animation, child: child);
+                              },
+                              transitionDuration:
+                                  const Duration(milliseconds: 280),
                             ),
                           ),
                           child: _PhilosophyCard(
                             philosophy: p,
-                            delay: i * 60,
+                            delay: i * 50,
                           ),
                         );
                       },
@@ -136,6 +144,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                     ),
                   ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           ),
@@ -145,7 +155,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 }
 
-// ── Philosophy card ───────────────────────────────────────────────────────────
+// ── Philosophy card ───────────────────────────────────────────────────────
 
 class _PhilosophyCard extends StatelessWidget {
   final PhilosophyModel philosophy;
@@ -178,7 +188,8 @@ class _PhilosophyCard extends StatelessWidget {
             children: [
               Text(p.emoji, style: const TextStyle(fontSize: 28)),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
@@ -233,8 +244,8 @@ class _PhilosophyCard extends StatelessWidget {
         ],
       ),
     )
-        .animate(delay: Duration(milliseconds: 200 + delay))
+        .animate(delay: Duration(milliseconds: 150 + delay))
         .fadeIn(duration: 400.ms)
-        .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1));
+        .scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1));
   }
 }

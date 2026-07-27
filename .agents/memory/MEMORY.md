@@ -1,0 +1,4 @@
+- [Project structure](project-structure.md) — Flutter + Flask monorepo; backend in backend/, frontend in frontend/
+- [Auth flow](auth-flow.md) — unauthenticated users see MainShell (guest mode); auth is a bottom sheet via showAuthSheet(); never forced
+- [API config](api-config.md) — single source of truth for backend URL and timeout is frontend/lib/core/api_config.dart
+- [isPremium security rule](premium-security.md) — never write isPremium to Firestore from client; keep in-memory only; server webhook owns Firestore value

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/app_colors.dart';
 import '../widgets/cosmic_background.dart';
+import '../widgets/tappable.dart';
 import '../data/philosophies_data.dart';
-import '../providers/auth_provider.dart' as core; // ← ADDED import
+import '../providers/auth_provider.dart' as core;
 import 'philosophy_detail_screen.dart';
 import 'forge_screen.dart';
 import 'package:provider/provider.dart';
@@ -27,29 +29,16 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ← FIXED: Use Provider.of instead of context.watch inside build
     final auth = Provider.of<core.AuthProvider>(context);
-    final streak = auth
-        .currentStreak; // Make sure UserModel has 'currentStreak' (not 'currentSteak')
+    final streak = auth.currentStreak;
     final today = DateTime.now();
     final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final dayName = weekdays[today.weekday - 1];
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     final dateStr = '$dayName, ${months[today.month - 1]} ${today.day}';
-
     final dayOfYear = today.difference(DateTime(today.year)).inDays;
     final featured = kPhilosophies[dayOfYear % kPhilosophies.length];
     final daily =
@@ -68,7 +57,7 @@ class _TodayScreenState extends State<TodayScreen> {
               onRefresh: _onRefresh,
               child: CustomScrollView(
                 slivers: [
-                  // Header
+                  // ── Header ──────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -80,11 +69,13 @@ class _TodayScreenState extends State<TodayScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(dateStr,
-                                    style: const TextStyle(
-                                      color: AppColors.textMuted,
-                                      fontSize: 12,
-                                      letterSpacing: 1.5,
-                                    )).animate().fadeIn(duration: 500.ms),
+                                        style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12,
+                                          letterSpacing: 1.5,
+                                        ))
+                                    .animate()
+                                    .fadeIn(duration: 500.ms),
                                 const SizedBox(height: 4),
                                 const Text('Today',
                                         style: TextStyle(
@@ -107,16 +98,18 @@ class _TodayScreenState extends State<TodayScreen> {
                       ),
                     ),
                   ),
-                  // Featured philosophy card
+
+                  // ── Featured philosophy card ─────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                      child: GestureDetector(
+                      child: Tappable(
+                        scale: 0.97,
                         onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => PhilosophyDetailScreen(
-                                    philosophy: featured))),
+                          context,
+                          _slideRoute(
+                              PhilosophyDetailScreen(philosophy: featured)),
+                        ),
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -160,8 +153,10 @@ class _TodayScreenState extends State<TodayScreen> {
                                     ],
                                   ),
                                   const Spacer(),
-                                  const Icon(Icons.arrow_forward_ios_rounded,
-                                      color: AppColors.textMuted, size: 14),
+                                  const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      color: AppColors.textMuted,
+                                      size: 14),
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -180,7 +175,8 @@ class _TodayScreenState extends State<TodayScreen> {
                           .slideY(begin: 0.1, end: 0),
                     ),
                   ),
-                  // Quote section
+
+                  // ── Quote ───────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
@@ -214,18 +210,22 @@ class _TodayScreenState extends State<TodayScreen> {
                                       fontSize: 12,
                                     )),
                                 const Spacer(),
-                                GestureDetector(
-                                  onTap: () => Share.share(
-                                    // ← FIXED: Share.share()
-                                    '"${daily.quote}"\n— ${daily.quoteAuthor}\n\nFrom the CORE app',
-                                  ),
+                                Tappable(
+                                  scale: 0.93,
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    Share.share(
+                                      '"${daily.quote}"\n— ${daily.quoteAuthor}\n\nFrom the CORE app',
+                                    );
+                                  },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
                                       color: AppColors.gold
                                           .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius:
+                                          BorderRadius.circular(10),
                                       border: Border.all(
                                           color: AppColors.gold
                                               .withValues(alpha: 0.25)),
@@ -253,7 +253,8 @@ class _TodayScreenState extends State<TodayScreen> {
                       ),
                     ).animate(delay: 300.ms).fadeIn(duration: 500.ms),
                   ),
-                  // Reflection question
+
+                  // ── Reflection ──────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
@@ -269,7 +270,8 @@ class _TodayScreenState extends State<TodayScreen> {
                       ),
                     ).animate(delay: 400.ms).fadeIn(duration: 500.ms),
                   ),
-                  // Action challenge
+
+                  // ── Action challenge ─────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
@@ -285,7 +287,8 @@ class _TodayScreenState extends State<TodayScreen> {
                       ),
                     ).animate(delay: 500.ms).fadeIn(duration: 500.ms),
                   ),
-                  // More philosophies
+
+                  // ── More philosophies ────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -308,13 +311,13 @@ class _TodayScreenState extends State<TodayScreen> {
                                   const SizedBox(width: 10),
                               itemBuilder: (context, i) {
                                 final p = kPhilosophies[i];
-                                return GestureDetector(
+                                return Tappable(
+                                  scale: 0.93,
                                   onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) =>
-                                              PhilosophyDetailScreen(
-                                                  philosophy: p))),
+                                    context,
+                                    _slideRoute(
+                                        PhilosophyDetailScreen(philosophy: p)),
+                                  ),
                                   child: Container(
                                     width: 80,
                                     decoration: BoxDecoration(
@@ -332,8 +335,8 @@ class _TodayScreenState extends State<TodayScreen> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Text(p.emoji,
-                                            style:
-                                                const TextStyle(fontSize: 22)),
+                                            style: const TextStyle(
+                                                fontSize: 22)),
                                         const SizedBox(height: 4),
                                         Text(
                                           p.name,
@@ -357,7 +360,8 @@ class _TodayScreenState extends State<TodayScreen> {
                       ),
                     ).animate(delay: 600.ms).fadeIn(duration: 500.ms),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
                 ],
               ),
             ),
@@ -368,7 +372,21 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 }
 
-// ── Streak badge ──────────────────────────────────────────────────────────────
+// ── Page transition helper ─────────────────────────────────────────────────
+
+PageRouteBuilder _slideRoute(Widget page) {
+  return PageRouteBuilder(
+    pageBuilder: (_, __, ___) => page,
+    transitionsBuilder: (_, animation, __, child) {
+      final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+          .chain(CurveTween(curve: Curves.easeOutCubic));
+      return SlideTransition(position: animation.drive(tween), child: child);
+    },
+    transitionDuration: const Duration(milliseconds: 320),
+  );
+}
+
+// ── Streak badge ──────────────────────────────────────────────────────────
 
 class _StreakBadge extends StatelessWidget {
   final int streak;
@@ -407,18 +425,22 @@ class _StreakBadge extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.8, 0.8));
+    )
+        .animate()
+        .fadeIn(duration: 400.ms)
+        .scale(begin: const Offset(0.8, 0.8));
   }
 }
 
-// ── Quick forge button ────────────────────────────────────────────────────────
+// ── Quick forge button ────────────────────────────────────────────────────
 
 class _QuickForgeButton extends StatelessWidget {
   const _QuickForgeButton();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Tappable(
+      scale: 0.92,
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ForgeScreen()),
@@ -426,11 +448,10 @@ class _QuickForgeButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.accent
-              .withValues(alpha: 0.15), // ← FIXED: use accent with alpha
+          color: AppColors.accent.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: AppColors.accent.withValues(alpha: 0.3)), // ← FIXED
+          border:
+              Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
@@ -451,7 +472,7 @@ class _QuickForgeButton extends StatelessWidget {
   }
 }
 
-// ── Section card ──────────────────────────────────────────────────────────────
+// ── Section card ──────────────────────────────────────────────────────────
 
 class _SectionCard extends StatelessWidget {
   final String title;

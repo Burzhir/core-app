@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'core/app_colors.dart';
 import 'core/app_theme.dart';
+import 'core/auth_modal.dart';
 import 'providers/auth_provider.dart' as core;
 import 'screens/auth_screen.dart';
 import 'screens/today_screen.dart';
@@ -42,7 +43,9 @@ class _RootRouter extends StatelessWidget {
       case core.AuthStatus.unknown:
         return const _SplashScreen();
       case core.AuthStatus.unauthenticated:
-        return const AuthScreen();
+        // Let users browse the app as guests — auth is prompted contextually.
+        if (showOnboarding) return const OnboardingScreen();
+        return const MainShell();
       case core.AuthStatus.authenticated:
         if (showOnboarding) return const OnboardingScreen();
         return const MainShell();
@@ -103,7 +106,6 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    // Sync premium status + streak every time the main shell is mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<core.AuthProvider>();
       if (auth.isAuthenticated) {
@@ -116,27 +118,73 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      extendBody: true, // Required for floating nav bar
+      extendBody: true,
       body: IndexedStack(index: _index, children: _screens),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Open Maya Chat Screen
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const MayaChatScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(0.0, 1.0);
-                const end = Offset.zero;
-                const curve = Curves.easeOutQuart;
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                return SlideTransition(position: animation.drive(tween), child: child);
-              },
-            ),
-          );
-        },
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+      floatingActionButton: _MayaFab(),
+      bottomNavigationBar: _NavBar(
+        index: _index,
+        onTap: (i) => setState(() => _index = i),
+      ),
+    );
+  }
+}
+
+// ── Maya floating button ────────────────────────────────────────────────────
+
+class _MayaFab extends StatefulWidget {
+  @override
+  State<_MayaFab> createState() => _MayaFabState();
+}
+
+class _MayaFabState extends State<_MayaFab>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 220),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) => _ctrl.reverse(),
+      onTapCancel: () => _ctrl.reverse(),
+      onTap: () {
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            pageBuilder: (context, animation, _) => const MayaChatScreen(),
+            transitionsBuilder: (context, animation, _, child) {
+              final tween =
+                  Tween(begin: const Offset(0.0, 1.0), end: Offset.zero)
+                      .chain(CurveTween(curve: Curves.easeOutQuart));
+              return SlideTransition(
+                  position: animation.drive(tween), child: child);
+            },
+          ),
+        );
+      },
+      child: ScaleTransition(
+        scale: _scale,
         child: Container(
+          width: 56,
+          height: 56,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
@@ -147,23 +195,20 @@ class _MainShellState extends State<MainShell> {
             boxShadow: [
               BoxShadow(
                 color: Color(0xFFBF5AF2),
-                blurRadius: 15,
+                blurRadius: 18,
                 spreadRadius: 2,
               )
             ],
           ),
-          child: const Center(
-            child: Icon(Icons.auto_awesome, color: Colors.white, size: 28),
-          ),
+          child:
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 26),
         ),
-      ),
-      bottomNavigationBar: _NavBar(
-        index: _index,
-        onTap: (i) => setState(() => _index = i),
       ),
     );
   }
 }
+
+// ── Bottom nav ──────────────────────────────────────────────────────────────
 
 class _NavBar extends StatelessWidget {
   final int _index;
@@ -210,9 +255,10 @@ class _NavBar extends StatelessWidget {
                   onTap: () => onTap(i),
                   behavior: HitTestBehavior.opaque,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
+                    duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -222,7 +268,9 @@ class _NavBar extends StatelessWidget {
                           child: Icon(
                             active ? item.$2 : item.$1,
                             key: ValueKey(active),
-                            color: active ? AppColors.accent : AppColors.textMuted,
+                            color: active
+                                ? AppColors.accent
+                                : AppColors.textMuted,
                             size: active ? 26 : 22,
                           ),
                         ),
@@ -235,7 +283,10 @@ class _NavBar extends StatelessWidget {
                               height: 3,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFBF5AF2), Color(0xFF64D2FF)],
+                                  colors: [
+                                    Color(0xFFBF5AF2),
+                                    Color(0xFF64D2FF)
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
