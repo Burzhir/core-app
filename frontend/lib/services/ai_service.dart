@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Calls your Flask backend to get AI philosopher responses.
 class AiService {
@@ -10,7 +11,6 @@ class AiService {
   static const Duration _timeout = Duration(seconds: 45);
 
   /// Sends a user message and receives a response in the voice of [philosophyName].
-  /// [conversationHistory] should be the last few messages for context (max 10 pairs).
   static Future<String> chat({
     required String philosophyName,
     required String userMessage,
@@ -25,11 +25,20 @@ class AiService {
         {'role': 'user', 'content': userMessage},
       ];
 
+      // Get Firebase ID token (empty string if not signed in)
+      final user = FirebaseAuth.instance.currentUser;
+      final token = await user?.getIdToken() ?? '';
+
+      final body = {
+        'token': token,
+        'messages': messages,
+      };
+
       final response = await http
           .post(
             Uri.parse('$_baseUrl/api/chat'),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'messages': messages}),
+            body: jsonEncode(body),
           )
           .timeout(_timeout);
 
@@ -53,11 +62,15 @@ class AiService {
     required String userName,
   }) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final token = await user?.getIdToken() ?? '';
+
       final response = await http
           .post(
             Uri.parse('$_baseUrl/api/analyze'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
+              'token': token,
               'text': journalText,
               'userName': userName,
             }),
@@ -96,6 +109,8 @@ Key guidelines:
 Begin.''';
   }
 
+  // ── Philosophy tones map ───────────────────────────────────────────────────
+
   static const Map<String, String> _tones = {
     'Stoicism':
         'Your voice: steady, warm, rigorous. Like Marcus Aurelius writing in his private journal — demanding of yourself but not harsh. You return constantly to the dichotomy of control and the primacy of virtue.',
@@ -126,7 +141,7 @@ Begin.''';
   };
 }
 
-// ── Journal analysis result ────────────────────────────────────────────────────
+// ── JournalAnalysis ─────────────────────────────────────────────────────────
 
 class JournalAnalysis {
   final List<String> themes;

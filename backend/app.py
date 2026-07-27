@@ -1,30 +1,43 @@
-
 import uuid
 import logging
-from flask import Flask
-from flask import g
+from flask import Flask, g
 from config import Config
 from extensions import init_extensions
 from utils.logging_config import setup_logging
 from utils.errors import error_response
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 logger = logging.getLogger(__name__)
 
+
 def create_app():
-    setup_logging()  # Configure logging with request ID support
+    # 1. Create the app once
     app = Flask(__name__)
-    app.config.from_object(Config)   # loads all the Config variables
+
+    # 2. Load configuration
+    app.config.from_object(Config)
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024  # 16 KB
 
-    init_extensions(app)             # sets up CORS and rate limiter
+    # 3. Apply ProxyFix so rate limiter sees the real client IP
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
-    # ── Startup configuration validation ────────────────────────────────────
+    # 4. Set up logging (now that config is available)
+    setup_logging()
+
+    # 5. Initialize extensions (CORS, rate limiter, etc.)
+    init_extensions(app)
+
+    # 6. Startup configuration validation
     if not app.config.get("OPENROUTER_API_KEY"):
-        logger.error("OPENROUTER_API_KEY is not set — AI endpoints will return fallback responses")
+        logger.error(
+            "OPENROUTER_API_KEY is not set — AI endpoints will return fallback responses"
+        )
     if app.config.get("SECRET_KEY") == "a-very-strong-secret-key":
-        logger.warning("SECRET_KEY is using the insecure default — set SECRET_KEY env var in production")
+        logger.warning(
+            "SECRET_KEY is using the insecure default — set SECRET_KEY env var in production"
+        )
 
-    # Register blueprints (we'll create these in a moment)
+    # 7. Register blueprints
     from blueprints.philosophies import philosophies_bp
     from blueprints.health import health_bp
     from blueprints.chat import chat_bp
@@ -37,10 +50,12 @@ def create_app():
     app.register_blueprint(analyze_bp)
     app.register_blueprint(maya_bp)
 
+    # 8. Request‑level middleware
     @app.before_request
     def assign_request_id():
         g.req_id = str(uuid.uuid4())[:8]
 
+    # 9. Error handlers
     @app.errorhandler(404)
     def not_found(e):
         return error_response("Endpoint not found", 404, "NOT_FOUND")
@@ -56,9 +71,10 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         logger.exception("Unhandled exception")
-        return error_response("Internal server error", 500, "SERVER_ERROR")    
+        return error_response("Internal server error", 500, "SERVER_ERROR")
 
     return app
+
 
 if __name__ == "__main__":
     app = create_app()

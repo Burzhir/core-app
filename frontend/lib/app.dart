@@ -4,9 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'core/app_colors.dart';
 import 'core/app_theme.dart';
-import 'core/auth_modal.dart';
 import 'providers/auth_provider.dart' as core;
-import 'screens/auth_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/forge_screen.dart';
 import 'screens/library_screen.dart';
@@ -200,8 +198,7 @@ class _MayaFabState extends State<_MayaFab>
               )
             ],
           ),
-          child:
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 26),
+          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 26),
         ),
       ),
     );
@@ -236,7 +233,8 @@ class _NavBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: AppColors.border.withValues(alpha: 0.3)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -268,9 +266,8 @@ class _NavBar extends StatelessWidget {
                           child: Icon(
                             active ? item.$2 : item.$1,
                             key: ValueKey(active),
-                            color: active
-                                ? AppColors.accent
-                                : AppColors.textMuted,
+                            color:
+                                active ? AppColors.accent : AppColors.textMuted,
                             size: active ? 26 : 22,
                           ),
                         ),

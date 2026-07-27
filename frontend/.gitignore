@@ -51,3 +51,4 @@ app.*.map.json
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
 /lib/core/secrets.dart
+/android/app/core-app-5c2ed-firebase-adminsdk-fbsvc-9c1232e16a.json
