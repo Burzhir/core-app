@@ -1,56 +1,53 @@
-import os, time, json, re, requests, logging
-from flask import g
+import os
+import time
+import logging
+import requests
+from flask import current_app, g, has_app_context, has_request_context
 
 logger = logging.getLogger(__name__)
 
-# Default full list of free models
-DEFAULT_FREE_MODELS = [
-    "qwen/qwen3-next-80b-a3b-instruct:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "meta-llama/llama-3.2-3b-instruct:free",
-    "nousresearch/hermes-3-llama-3.1-405b:free",
-    "google/gemma-4-31b-it:free",
-    "google/gemma-4-26b-a4b-it:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-    "nvidia/nemotron-3-nano-30b-a3b:free",
-    "nvidia/nemotron-nano-12b-v2-vl:free",
-    "nvidia/nemotron-nano-9b-v2:free",
-    "moonshotai/kimi-k2.6:free",
-    "poolside/laguna-xs.2:free",
-    "poolside/laguna-m.1:free",
-    "liquid/lfm-2.5-1.2b-thinking:free",
-    "liquid/lfm-2.5-1.2b-instruct:free",
-    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-    "openai/gpt-oss-120b:free",
-    "openai/gpt-oss-20b:free",
-    "z-ai/glm-4.5-air:free",
-    "qwen/qwen3-coder:free",
-    "openrouter/free",
-]
-DEFAULT_FREE_MODELS = list(dict.fromkeys(DEFAULT_FREE_MODELS))
 
-# Priority models (tried first, no sleep between them)
-PRIORITY_MODELS = os.getenv(
-    "PRIORITY_MODELS",
-    "PRIORITY_MODELS=google/gemma-4-26b-a4b-it:free,qwen/qwen3-next-80b-a3b-instruct:free,meta-llama/llama-3.3-70b-instruct:free"
-).split(",")
-PRIORITY_MODELS = [m.strip() for m in PRIORITY_MODELS if m.strip()]
-
-# Maximum total time (seconds) to spend trying models before giving up
-MAX_TRY_TIME = float(os.getenv("MAX_AI_TRY_TIME", "7.0"))
+def _get_primary_model() -> str:
+    """Return the first model from PRIORITY_MODELS env var."""
+    models = os.getenv("PRIORITY_MODELS", "deepseek/deepseek-v4-flash")
+    return models.split(",")[0].strip()
 
 
-def _try_openrouter(messages: list, model: str, temperature: float, max_tokens: int) -> dict:
-    """Attempt a single OpenRouter call with a specific model."""
+def call_openrouter(
+    messages: list,
+    temperature: float = 0.6,
+    max_tokens: int = 300
+) -> dict:
+    """
+    Make a single, reliable call to OpenRouter using a paid model.
+
+    Returns:
+        dict with key "content" (the cleaned response text).
+    """
+    # ------------------------------------------------------------------
+    # 1. Safely obtain configuration (works with or without Flask context)
+    # ------------------------------------------------------------------
     api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key and has_app_context():
+        api_key = current_app.config.get("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY is not set")
+
+    referer = os.getenv("APP_URL")
+    if not referer and has_app_context():
+        referer = current_app.config.get("APP_URL", "http://localhost:3000")
+
+    # Request ID for logging – only available inside a request context
+    req_id = "?"
+    if has_request_context():
+        req_id = getattr(g, "req_id", "?")
+
+    model = _get_primary_model()
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": os.getenv("APP_URL", "http://localhost:3000"),
+        "HTTP-Referer": referer,
         "X-Title": "CORE App",
     }
 
@@ -62,65 +59,61 @@ def _try_openrouter(messages: list, model: str, temperature: float, max_tokens: 
         "provider": {"allow_fallbacks": True},
     }
 
+    # ------------------------------------------------------------------
+    # 2. Make the request with a clear error that never leaks internals
+    # ------------------------------------------------------------------
     start = time.time()
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=10,  # per-model timeout (shorter than before)
-    )
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=25,
+        )
+        resp.raise_for_status()
+    except Exception:
+        logger.exception("OpenRouter API call failed")  # Logs full traceback
+        raise Exception("AI Service temporarily unavailable") from None
+
     elapsed_ms = int((time.time() - start) * 1000)
-    req_id = getattr(g, "req_id", "?")
-    logger.info("req=%s model=%s ms=%d status=%d", req_id, model, elapsed_ms, resp.status_code)
+    logger.info(
+        "req=%s model=%s ms=%d status=%d",
+        req_id, model, elapsed_ms, resp.status_code
+    )
 
-    if resp.status_code == 429:
-        # Rate limited – we'll skip to next model quickly
-        raise Exception("rate limited")
-    if resp.status_code != 200:
-        raise Exception(f"status {resp.status_code}")
+    # ------------------------------------------------------------------
+    # 3. Robust response parsing – validate structure before accessing
+    # ------------------------------------------------------------------
+    try:
+        data = resp.json()
+    except ValueError:
+        logger.error("OpenRouter response is not valid JSON")
+        raise Exception("AI Service returned invalid data") from None
 
-    data = resp.json()
-    raw = data["choices"][0]["message"]["content"].strip()
+    choices = data.get("choices")
+    if not isinstance(choices, list) or len(choices) == 0:
+        logger.error("Unexpected response structure: %s", data)
+        raise Exception("AI Service returned unexpected data")
+
+    content = choices[0].get("message", {}).get("content", "")
+    if not content:
+        logger.error("Empty content in OpenRouter response")
+        raise Exception("AI Service returned empty content")
+
+    raw = content.strip()
+
+
     if raw.startswith("```"):
-        raw = raw.replace("```json", "").replace("```", "").strip()
-    return {"content": raw}
+    
+        lines = raw.split("\n", 1)
+        if len(lines) > 1:
+            raw = lines[1]
+        else:
+            raw = ""
+        # Remove trailing ``` if it exists as the very last characters
+        if raw.rstrip().endswith("```"):
+            # Find the last occurrence of ``` and remove it, keeping leading whitespace
+            last_fence = raw.rfind("```")
+            raw = raw[:last_fence].rstrip()
 
-
-def call_openrouter(messages: list, temperature: float = 0.6, max_tokens: int = 300) -> dict:
-    """
-    Try priority models first, then the rest of the free list.
-    Stop if total elapsed time exceeds MAX_TRY_TIME.
-    Raises an exception if no model responds in time.
-    """
-    # Build combined list: priority first, then remaining free models (without duplicates)
-    tried = set()
-    combined = []
-    for m in PRIORITY_MODELS:
-        if m not in tried:
-            combined.append(m)
-            tried.add(m)
-    for m in DEFAULT_FREE_MODELS:
-        if m not in tried:
-            combined.append(m)
-            tried.add(m)
-
-    start_time = time.time()
-    last_exc = None
-
-    for i, model in enumerate(combined):
-        # Check time budget
-        elapsed = time.time() - start_time
-        if elapsed > MAX_TRY_TIME:
-            raise Exception(f"Time budget {MAX_TRY_TIME}s exceeded")
-
-        try:
-            return _try_openrouter(messages, model, temperature, max_tokens)
-        except Exception as exc:
-            last_exc = exc
-            logger.warning("Model %s failed: %s", model, exc)
-            # No sleep between attempts – we're already wasting time on network calls
-            # But to be gentle on free tier, add a tiny delay after a 429
-            if "rate limited" in str(exc).lower() or "429" in str(exc):
-                time.sleep(0.3)
-
-    raise last_exc or Exception("All models exhausted")
+    return {"content": raw.strip()}

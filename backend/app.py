@@ -31,15 +31,6 @@ def create_app():
     app.register_blueprint(analyze_bp)
     app.register_blueprint(maya_bp)
 
-    # Simple error handlers (optional but nice)
-    @app.errorhandler(404)
-    def not_found(e):
-        return {"error": "Endpoint not found"}, 404
-
-    @app.errorhandler(429)
-    def rate_limited(e):
-        return {"error": "Too many requests"}, 429
-    
     @app.before_request
     def assign_request_id():
         g.req_id = str(uuid.uuid4())[:8]

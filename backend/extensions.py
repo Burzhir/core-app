@@ -6,5 +6,6 @@ limiter = Limiter(key_func=get_remote_address)
 cors = CORS()
 
 def init_extensions(app):
+    app.config.setdefault("RATELIMIT_STORAGE_URI", app.config.get("REDIS_URL", "memory://"))
     limiter.init_app(app)
     cors.init_app(app, origins=app.config["ALLOWED_ORIGINS"])

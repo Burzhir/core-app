@@ -2,7 +2,6 @@ import os
 import json
 import requests
 import logging
-import logging
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ def call_maya(messages: list) -> dict:
     }
 
     payload = {
-        "model": "deepseek/deepseek-chat",
+        "model": "deepseek/deepseek-v4-flash",
         "messages": formatted_messages,
         "temperature": 0.6,
         "response_format": {"type": "json_object"}
@@ -62,11 +61,17 @@ def call_maya(messages: list) -> dict:
         raw_content = data["choices"][0]["message"]["content"].strip()
         
         parsed = json.loads(raw_content)
-        return parsed
+        return {
+            "action": parsed.get("action", "chat"),
+            "message": parsed.get("message", "I'm here. How can I help?"),
+            "improvement": parsed.get("improvement"),
+            "target": parsed.get("target"),
+        }
     except Exception as exc:
         logger.error("Maya API failed: %s", exc)
         return {
             "action": "chat",
             "message": "I'm having a bit of trouble connecting to my core logic right now. Please try again in a moment.",
-            "target": None
+            "improvement": None,
+            "target": None,
         }
