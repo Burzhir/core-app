@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../core/api_config.dart';
 import '../models/user_model.dart';
 import '../services/revenue_cat_service.dart';
@@ -54,6 +55,10 @@ class MayaProvider extends ChangeNotifier {
       final isPremium = await RevenueCatService.checkPremium();
       final userMessageCount = _messages.where((m) => m.isUser).length;
 
+      // Get Firebase ID token for backend authentication
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final token = await firebaseUser?.getIdToken() ?? '';
+
       final history = _messages.map((m) {
         return {'role': m.isUser ? 'user' : 'assistant', 'content': m.text};
       }).toList();
@@ -63,6 +68,7 @@ class MayaProvider extends ChangeNotifier {
             Uri.parse('${ApiConfig.baseUrl}/api/maya'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
+              'token': token,
               'messages': history,
               'subscription_status': isPremium ? 'premium' : 'free',
               'message_count': userMessageCount,

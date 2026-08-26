@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import logging
-from flask import current_app
+from flask import current_app, has_app_context
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,14 @@ def call_maya(messages: list) -> dict:
             formatted_messages.append(msg)
 
     api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key and current_app:
+    if not api_key and has_app_context():
         api_key = current_app.config.get("OPENROUTER_API_KEY")
 
     if not api_key:
         logger.error("Maya: OPENROUTER_API_KEY is not set")
         return _fallback()
 
-    app_url = current_app.config.get("APP_URL", "http://localhost:3000") if current_app else "http://localhost:3000"
+    app_url = current_app.config.get("APP_URL", "http://localhost:3000") if has_app_context() else "http://localhost:3000"
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -76,7 +76,7 @@ def call_maya(messages: list) -> dict:
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=15,
+            timeout=30,
         )
         resp.raise_for_status()
         data = resp.json()

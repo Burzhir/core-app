@@ -12,10 +12,14 @@ from firebase_admin import credentials, auth, firestore
 logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
-# 1. Load .env from the backend directory (parent of services/)
+# 1. Load .env from the project root (parent of backend/)
 # ----------------------------------------------------------------------
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-env_path = BACKEND_DIR / '.env'
+PROJECT_ROOT = BACKEND_DIR.parent
+env_path = PROJECT_ROOT / '.env'
+if not env_path.exists():
+    # Fallback: check backend dir itself
+    env_path = BACKEND_DIR / '.env'
 env_vars = dotenv_values(env_path)
 
 # ----------------------------------------------------------------------

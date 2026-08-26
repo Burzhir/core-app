@@ -16,7 +16,7 @@ def create_app():
 
     # 2. Load configuration
     app.config.from_object(Config)
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024  # 16 KB
+    app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1 MB (was 16 KB — too small for chat history)
 
     # 3. Apply ProxyFix so rate limiter sees the real client IP
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -67,6 +67,10 @@ def create_app():
     @app.errorhandler(429)
     def rate_limited(e):
         return error_response("Too many requests. Slow down.", 429, "RATE_LIMITED")
+
+    @app.errorhandler(413)
+    def request_too_large(e):
+        return error_response("Request body too large", 413, "PAYLOAD_TOO_LARGE")
 
     @app.errorhandler(500)
     def server_error(e):
